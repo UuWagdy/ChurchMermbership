@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -32,8 +33,14 @@ class DatabaseHelper {
       databaseFactory = databaseFactoryFfi;
     }
 
-    final dir = await getApplicationDocumentsDirectory();
-    final path = join(dir.path, 'AbonaFlemoon', 'eakhow_elrab.db');
+    String path;
+    if (Platform.isWindows) {
+      final exeDir = File(Platform.resolvedExecutable).parent.path;
+      path = join(exeDir, 'eakhow_elrab.db');
+    } else {
+      final dir = await getApplicationDocumentsDirectory();
+      path = join(dir.path, 'AbonaFlemoon', 'eakhow_elrab.db');
+    }
 
     // Ensure directory exists
     final dbDir = Directory(dirname(path));
@@ -41,9 +48,21 @@ class DatabaseHelper {
       await dbDir.create(recursive: true);
     }
 
+    // Copy from assets if not exists
+    if (!await File(path).exists()) {
+      try {
+        final byteData = await rootBundle.load('assets/database/eakhow_elrab.db');
+        final bytes = byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes);
+        await File(path).writeAsBytes(bytes);
+        debugPrint('Copied database from assets to: $path');
+      } catch (e) {
+        debugPrint('Error copying database from assets: $e');
+      }
+    }
+
     return await openDatabase(
       path,
-      version: 8,
+      version: 10,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
       onConfigure: (db) async {
@@ -177,6 +196,54 @@ class DatabaseHelper {
         }
       } catch (e) {
         debugPrint('Failed to sync exact tabs permissions: $e');
+      }
+    }
+    if (oldVersion < 9) {
+      try {
+        final newTabs = ['الافتقاد', 'ترحيل المراحل'];
+        for (var tab in newTabs) {
+          int iconId = await db.insert('icon', {'icon_name': tab}, conflictAlgorithm: ConflictAlgorithm.ignore);
+          if (iconId == 0) {
+            final res = await db.query('icon', where: 'icon_name = ?', whereArgs: [tab]);
+            if (res.isNotEmpty) iconId = res.first['icon_id'] as int;
+          }
+          if (iconId > 0) {
+            final users = await db.query('users');
+            for (var user in users) {
+               await db.insert('inter_icon', {
+                 'pass_id': user['pass_id'],
+                 'icon_id': iconId,
+                 'icon_name': tab,
+                 'check_1': user['pass_id'] == 1 ? 1 : 0, // only admin auto-enabled
+               }, conflictAlgorithm: ConflictAlgorithm.ignore);
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Failed to insert new permissions for version 9: $e');
+      }
+    }
+    if (oldVersion < 10) {
+      try {
+        final tab = 'الاعتراف';
+        int iconId = await db.insert('icon', {'icon_name': tab}, conflictAlgorithm: ConflictAlgorithm.ignore);
+        if (iconId == 0) {
+          final res = await db.query('icon', where: 'icon_name = ?', whereArgs: [tab]);
+          if (res.isNotEmpty) iconId = res.first['icon_id'] as int;
+        }
+        if (iconId > 0) {
+          final users = await db.query('users');
+          for (var user in users) {
+             await db.insert('inter_icon', {
+               'pass_id': user['pass_id'],
+               'icon_id': iconId,
+               'icon_name': tab,
+               'check_1': 1, // enabled for all accounts automatically as requested
+             }, conflictAlgorithm: ConflictAlgorithm.ignore);
+          }
+        }
+      } catch (e) {
+        debugPrint('Failed to insert الاعتراف permission for version 10: $e');
       }
     }
   }
@@ -449,7 +516,7 @@ class DatabaseHelper {
       'إدراج أسر', 'مناطق وشوارع', 'آباء كهنة', 'مناسبات',
       'بحث', 'أعياد ميلاد', 'صلاحيات', 'حساب مساعدات',
       'تقرير اخوة الرب', 'خدمات', 'مصروفات', 'بحث مصروفات',
-      'إدارة القوائم', 'طباعة كارنيه', 'صيانة النظام'
+      'إدارة القوائم', 'طباعة كارنيه', 'صيانة النظام', 'الافتقاد', 'ترحيل المراحل', 'الاعتراف'
     ];
     for (var ic in iconList) {
       await db.insert('icon', {'icon_name': ic}, conflictAlgorithm: ConflictAlgorithm.ignore);

@@ -1,0 +1,2038 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>برنامج العضوية الكنسية | الموقع الرسمي</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="الموقع الرسمي لبرنامج العضوية الكنسية - نظام متكامل لإدارة الأسر والخدمات والمالية ومتابعة الافتقاد والاعترافات. قم بتحميل نسخة الويندوز والأندرويد الآن.">
+  <meta name="keywords" content="العضوية الكنسية, إدارة الكنيسة, برنامج الأسر الكنسية, افتقاد, اعتراف, اخوة الرب, مساعدات مالية, كارنيه الكنيسة, باركود">
+  <meta name="author" content="د. يوساب وجدي, م. جورج منير">
+  
+  <!-- PWA & Apple Meta Tags -->
+  <meta name="theme-color" content="#070a13">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="العضوية الكنسية">
+  <link rel="apple-touch-icon" href="./public/images/icons/apple-touch-icon.png">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="shortcut icon" href="./public/favicon.ico" type="image/x-icon">
+
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    /* CSS Variables & Core Design System */
+    :root {
+      --bg-main: #070a13;
+      --bg-card: rgba(17, 24, 39, 0.7);
+      --bg-card-hover: rgba(31, 41, 55, 0.8);
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --accent: #f59e0b;
+      --accent-hover: #d97706;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(37, 99, 235, 0.4);
+      --font-family: 'Cairo', sans-serif;
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      --glow-blue: 0 0 20px rgba(37, 99, 235, 0.35);
+      --glow-gold: 0 0 20px rgba(245, 158, 11, 0.35);
+    }
+
+    /* Reset Styles */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: var(--font-family);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-main);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(37, 99, 235, 0.3);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--primary);
+    }
+
+    /* Global Utilities */
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .glass {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      font-family: var(--font-family);
+      font-weight: 700;
+      font-size: 15px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: var(--transition);
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: var(--glow-blue);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .btn-accent {
+      background: var(--accent);
+      color: #070a13;
+      box-shadow: var(--glow-gold);
+    }
+
+    .btn-accent:hover {
+      background: var(--accent-hover);
+      transform: translateY(-2px);
+    }
+
+    /* Background Animated Orbs */
+    .orbs-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.4;
+    }
+
+    .orb-1 {
+      top: -10%;
+      left: -10%;
+      width: 50vw;
+      height: 50vw;
+      background: radial-gradient(circle, rgba(37, 99, 235, 0.2) 0%, rgba(7, 10, 19, 0) 70%);
+      animation: float-slow 25s infinite alternate;
+    }
+
+    .orb-2 {
+      bottom: -15%;
+      right: -10%;
+      width: 60vw;
+      height: 60vw;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, rgba(7, 10, 19, 0) 70%);
+      animation: float-slow-reverse 30s infinite alternate;
+    }
+
+    @keyframes float-slow {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(8%, 12%) scale(1.1); }
+    }
+
+    @keyframes float-slow-reverse {
+      0% { transform: translate(0, 0) scale(1.1); }
+      100% { transform: translate(-8%, -12%) scale(0.9); }
+    }
+
+    /* 1. Header Styles */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 1000;
+      background: rgba(7, 10, 19, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      transition: var(--transition);
+    }
+
+    header.scrolled {
+      padding: 8px 0;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      background: rgba(7, 10, 19, 0.9);
+    }
+
+    header .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 80px;
+      transition: var(--transition);
+    }
+
+    header.scrolled .container {
+      height: 64px;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-main);
+    }
+
+    .logo-img {
+      height: 48px;
+      width: 48px;
+      object-fit: contain;
+      transition: var(--transition);
+    }
+
+    header.scrolled .logo-img {
+      height: 38px;
+      width: 38px;
+    }
+
+    .logo-text {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-link {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 15px;
+      transition: var(--transition);
+      position: relative;
+      padding: 6px 0;
+    }
+
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 0;
+      height: 2px;
+      background: var(--primary);
+      transition: var(--transition);
+    }
+
+    .nav-link:hover {
+      color: var(--text-main);
+    }
+
+    .nav-link:hover::after {
+      width: 100%;
+    }
+
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      z-index: 1100;
+    }
+
+    .hamburger span {
+      display: block;
+      width: 28px;
+      height: 3px;
+      background-color: var(--text-main);
+      border-radius: 2px;
+      transition: var(--transition);
+    }
+
+    /* 2. Hero Section */
+    .hero-section {
+      padding: 160px 0 100px;
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 48px;
+      align-items: center;
+    }
+
+    .hero-content h1 {
+      font-size: 44px;
+      font-weight: 900;
+      line-height: 1.2;
+      margin-bottom: 20px;
+    }
+
+    .hero-content h1 span {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-content p {
+      font-size: 18px;
+      color: var(--text-muted);
+      margin-bottom: 36px;
+      font-weight: 500;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+    }
+
+    /* Fake Desktop Window Mockup */
+    .mock-window {
+      position: relative;
+      width: 100%;
+      height: 400px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), var(--border-hover);
+      animation: float-frame 6s ease-in-out infinite;
+      display: flex;
+      flex-direction: column;
+    }
+
+    @keyframes float-frame {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .window-header {
+      height: 40px;
+      background: rgba(15, 23, 42, 0.9);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      justify-content: space-between;
+    }
+
+    .window-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .window-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .dot-red { background-color: #ef4444; }
+    .dot-yellow { background-color: #f59e0b; }
+    .dot-green { background-color: #10b981; }
+
+    .window-title {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .window-body {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      background: rgba(7, 10, 19, 0.95);
+    }
+
+    .mock-sidebar {
+      background: rgba(15, 23, 42, 0.5);
+      border-left: 1px solid var(--border-color);
+      padding: 16px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .mock-sb-item {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 14px;
+      transition: var(--transition);
+    }
+
+    .mock-sb-item.active, .mock-sb-item:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    .mock-content {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .mock-logo-glow {
+      position: absolute;
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(37,99,235,0.15) 0%, rgba(0,0,0,0) 70%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .mock-login-card {
+      width: 100%;
+      max-width: 240px;
+      padding: 20px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      z-index: 2;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .mock-login-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      text-align: center;
+      color: var(--text-main);
+    }
+
+    .mock-input {
+      width: 100%;
+      background: rgba(7, 10, 19, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: white;
+      font-size: 11px;
+      margin-bottom: 8px;
+      font-family: var(--font-family);
+    }
+
+    .mock-login-btn {
+      width: 100%;
+      background: var(--primary);
+      color: white;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 8px 0;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-family: var(--font-family);
+      margin-top: 4px;
+      box-shadow: var(--glow-blue);
+    }
+
+    /* 3. Key Features Section */
+    .section-title-wrapper {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .section-subtitle {
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+      display: inline-block;
+    }
+
+    .section-title {
+      font-size: 36px;
+      font-weight: 800;
+    }
+
+    .features-section {
+      padding: 100px 0;
+      position: relative;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      padding: 32px;
+      position: relative;
+      overflow: hidden;
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      transform: scaleX(0);
+      transform-origin: right;
+      transition: var(--transition);
+    }
+
+    .feature-card:hover {
+      transform: translateY(-8px);
+      border-color: var(--border-hover);
+      background: var(--bg-card-hover);
+      box-shadow: var(--glow-blue);
+    }
+
+    .feature-card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .feature-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      background: rgba(37, 99, 235, 0.1);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      transition: var(--transition);
+    }
+
+    .feature-card:hover .feature-icon {
+      background: var(--primary);
+      color: white;
+      transform: scale(1.1);
+    }
+
+    .feature-card h3 {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .feature-card p {
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    /* 4. Interactive Explorer Section */
+    .explorer-section {
+      padding: 100px 0;
+      position: relative;
+    }
+
+    .explorer-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+
+    .explorer-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .explorer-tab-btn {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 20px;
+      background: transparent;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: var(--font-family);
+      font-weight: 700;
+      font-size: 16px;
+      text-align: right;
+      transition: var(--transition);
+      width: 100%;
+    }
+
+    .explorer-tab-btn:hover {
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text-main);
+    }
+
+    .explorer-tab-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      box-shadow: var(--glow-blue);
+    }
+
+    .explorer-content {
+      padding: 32px;
+      min-height: 400px;
+    }
+
+    .explorer-panel {
+      display: none;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .explorer-panel.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .panel-header i {
+      font-size: 28px;
+      color: var(--accent);
+    }
+
+    .panel-header h3 {
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    /* Accordion Styles */
+    .accordion-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .accordion-item {
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      background: rgba(7, 10, 19, 0.4);
+      transition: var(--transition);
+    }
+
+    .accordion-item.active {
+      border-color: var(--border-hover);
+      background: rgba(7, 10, 19, 0.8);
+    }
+
+    .accordion-trigger {
+      width: 100%;
+      background: transparent;
+      border: none;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-main);
+      cursor: pointer;
+      font-family: var(--font-family);
+      font-weight: 700;
+      font-size: 16px;
+      text-align: right;
+    }
+
+    .accordion-title-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .accordion-title-wrapper i {
+      font-size: 18px;
+      color: var(--primary);
+    }
+
+    .accordion-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(37, 99, 235, 0.15);
+      color: var(--primary);
+      margin-right: 12px;
+    }
+
+    .accordion-item.active .accordion-badge {
+      background: var(--primary);
+      color: white;
+    }
+
+    .accordion-trigger i.chevron {
+      font-size: 14px;
+      transition: var(--transition);
+      color: var(--text-muted);
+    }
+
+    .accordion-item.active .accordion-trigger i.chevron {
+      transform: rotate(180deg);
+      color: var(--primary);
+    }
+
+    .accordion-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+
+    .accordion-body {
+      padding: 0 24px 24px 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+      font-size: 14.5px;
+      line-height: 1.8;
+    }
+
+    .accordion-body ul {
+      margin-top: 12px;
+      padding-right: 20px;
+      list-style-type: square;
+    }
+
+    .accordion-body li {
+      margin-bottom: 6px;
+    }
+
+    /* 5. Downloads & Credentials Section */
+    .downloads-section {
+      padding: 100px 0;
+      position: relative;
+    }
+
+    /* Gold Credentials Card */
+    .credentials-card {
+      margin-bottom: 40px;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(7, 10, 19, 0.8) 100%);
+      padding: 32px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 10px 30px rgba(245, 158, 11, 0.05);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .credentials-card::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(245, 158, 11, 0.03), transparent);
+      transform: rotate(45deg);
+      pointer-events: none;
+    }
+
+    .cred-text h3 {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+
+    .cred-text p {
+      color: var(--text-muted);
+      font-size: 15px;
+    }
+
+    .cred-boxes {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .cred-box {
+      background: rgba(7, 10, 19, 0.6);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      border-radius: 12px;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+    }
+
+    .cred-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: block;
+    }
+
+    .cred-val {
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--text-main);
+    }
+
+    .btn-copy {
+      background: transparent;
+      border: none;
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px;
+      transition: var(--transition);
+    }
+
+    .btn-copy:hover {
+      color: white;
+      transform: scale(1.1);
+    }
+
+    /* Downloads Grid */
+    .downloads-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .download-card {
+      padding: 40px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      transition: var(--transition);
+    }
+
+    .download-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--border-hover);
+    }
+
+    .download-card i.platform-icon {
+      font-size: 56px;
+      color: var(--primary);
+    }
+
+    .download-card.windows i.platform-icon {
+      color: #0078d4;
+    }
+
+    .download-card.android i.platform-icon {
+      color: #3ddc84;
+    }
+
+    .download-card h3 {
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .download-card p {
+      color: var(--text-muted);
+      font-size: 14.5px;
+      line-height: 1.6;
+      max-width: 320px;
+    }
+
+    .download-card .btn {
+      width: 100%;
+      max-width: 240px;
+      margin-top: 12px;
+    }
+
+    /* Open Source & Prerequisites Boxes */
+    .info-boxes {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+    }
+
+    .info-box {
+      padding: 24px 32px;
+      border-radius: 16px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .info-box i {
+      font-size: 32px;
+      flex-shrink: 0;
+    }
+
+    .info-box-text h4 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .info-box-text p {
+      font-size: 13.5px;
+      color: var(--text-muted);
+    }
+
+    .info-box-text a {
+      color: var(--text-main);
+      font-weight: 700;
+      text-decoration: underline;
+    }
+
+    .box-blue {
+      border: 1px solid rgba(37, 99, 235, 0.3);
+      background: rgba(37, 99, 235, 0.05);
+      color: var(--text-main);
+    }
+
+    .box-blue i {
+      color: var(--primary);
+    }
+
+    .box-red {
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.05);
+      color: var(--text-main);
+    }
+
+    .box-red i {
+      color: #ef4444;
+    }
+
+    /* 6. Developers Section */
+    .developers-section {
+      padding: 100px 0;
+      position: relative;
+    }
+
+    .developers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      justify-content: center;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .dev-card {
+      padding: 32px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      transition: var(--transition);
+      position: relative;
+    }
+
+    .dev-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--border-hover);
+      box-shadow: var(--glow-blue);
+    }
+
+    .dev-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.03);
+      border: 2px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+      padding: 16px;
+    }
+
+    .dev-card:hover .dev-avatar {
+      border-color: var(--primary);
+      background: rgba(37, 99, 235, 0.1);
+      transform: scale(1.05);
+    }
+
+    .dev-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .dev-name {
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .dev-role {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .dev-phone {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(37, 99, 235, 0.1);
+      color: var(--primary);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 700;
+      text-decoration: none;
+      margin-top: 8px;
+      transition: var(--transition);
+    }
+
+    .dev-phone:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* 7. Footer Styles */
+    footer {
+      border-top: 1px solid var(--border-color);
+      background: rgba(7, 10, 19, 0.95);
+      padding: 60px 0 30px;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr 1fr;
+      gap: 48px;
+      margin-bottom: 40px;
+    }
+
+    .footer-about {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .footer-about p {
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.7;
+      max-width: 360px;
+    }
+
+    .footer-links-col {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .footer-links-col h4 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .footer-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .footer-links a {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      transition: var(--transition);
+    }
+
+    .footer-links a:hover {
+      color: var(--primary);
+      padding-right: 4px;
+    }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 30px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* PWA Install Banner */
+    .pwa-banner {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      left: 24px;
+      max-width: 400px;
+      z-index: 9999;
+      padding: 20px;
+      display: none; /* Managed by JS */
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), var(--border-hover);
+      animation: slideUp 0.5s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .pwa-banner-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      object-fit: contain;
+    }
+
+    .pwa-banner-text {
+      flex: 1;
+    }
+
+    .pwa-banner-text h5 {
+      font-size: 14.5px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .pwa-banner-text p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .pwa-banner-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .pwa-banner-actions .btn {
+      padding: 8px 16px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+
+    /* Notification (Toast) */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      background: var(--accent);
+      color: #070a13;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      z-index: 10000;
+      box-shadow: var(--glow-gold);
+      display: none;
+      animation: slideUp 0.3s ease;
+    }
+
+    /* Responsive Styles & Media Queries */
+    @media (max-width: 992px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+        gap: 60px;
+        text-align: center;
+      }
+
+      .hero-content h1 {
+        font-size: 36px;
+      }
+
+      .hero-actions {
+        justify-content: center;
+      }
+
+      .mock-window {
+        max-width: 500px;
+        margin: 0 auto;
+      }
+
+      .explorer-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .explorer-sidebar {
+        flex-direction: row;
+        overflow-x: auto;
+        padding-bottom: 12px;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .explorer-tab-btn {
+        flex-shrink: 0;
+        width: auto;
+        white-space: nowrap;
+        scroll-snap-align: start;
+        padding: 12px 20px;
+        font-size: 14.5px;
+      }
+
+      .info-boxes {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .nav-links {
+        position: fixed;
+        top: 80px;
+        right: -100%;
+        width: 100%;
+        height: calc(100vh - 80px);
+        background: rgba(7, 10, 19, 0.98);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        flex-direction: column;
+        padding: 40px 24px;
+        gap: 24px;
+        transition: var(--transition);
+        border-top: 1px solid var(--border-color);
+        z-index: 1000;
+      }
+
+      .nav-links.active {
+        right: 0;
+      }
+
+      .hamburger {
+        display: flex;
+      }
+
+      .hamburger.active span:nth-child(1) {
+        transform: translateY(9px) rotate(45deg);
+      }
+
+      .hamburger.active span:nth-child(2) {
+        opacity: 0;
+      }
+
+      .hamburger.active span:nth-child(3) {
+        transform: translateY(-9px) rotate(-45deg);
+      }
+
+      .hero-actions {
+        flex-direction: column;
+      }
+
+      .hero-actions .btn {
+        width: 100%;
+      }
+
+      .downloads-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .credentials-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 20px;
+      }
+
+      .cred-boxes {
+        justify-content: center;
+      }
+
+      .footer-grid {
+        grid-template-columns: 1fr;
+        gap: 32px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .hero-content h1 {
+        font-size: 30px;
+      }
+
+      .section-title {
+        font-size: 28px;
+      }
+
+      .explorer-content {
+        padding: 16px;
+      }
+
+      .accordion-trigger {
+        padding: 16px;
+        font-size: 14.5px;
+      }
+
+      .accordion-body {
+        padding: 0 16px 16px 16px;
+        font-size: 13.5px;
+      }
+
+      .credentials-card {
+        padding: 20px;
+      }
+
+      .cred-box {
+        padding: 8px 16px;
+      }
+
+      .cred-val {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Orbs -->
+  <div class="orbs-container" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+  </div>
+
+  <!-- 1. Fixed Header -->
+  <header id="header">
+    <div class="container">
+      <a href="#" class="logo-area">
+        <img src="./public/logo.png" alt="شعار العضوية الكنسية" class="logo-img">
+        <span class="logo-text">العضوية الكنسية</span>
+      </a>
+
+      <ul class="nav-links" id="nav-links">
+        <li><a href="#" class="nav-link">الرئيسية</a></li>
+        <li><a href="#features" class="nav-link">المميزات</a></li>
+        <li><a href="#explorer" class="nav-link">دليل التبويبات</a></li>
+        <li><a href="#download" class="nav-link">التحميل والتشغيل</a></li>
+        <li><a href="#developers" class="nav-link">المطورون</a></li>
+      </ul>
+
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <a href="#download" class="btn btn-primary nav-cta" style="padding: 10px 20px; font-size: 14px;">تحميل النظام</a>
+        <button class="hamburger" id="hamburger" aria-label="القائمة الرئيسية">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 2. Hero Section -->
+  <section class="hero-section">
+    <div class="container">
+      <div class="hero-grid">
+        <div class="hero-content">
+          <span class="section-subtitle">إدارة ذكية واحترافية</span>
+          <h1>برنامج <span>العضوية الكنسية</span> المتكامل</h1>
+          <p>
+            نظام متطور مصمم خصيصاً لتنظيم وإدارة قاعدة بيانات الكنيسة، متابعة شؤون الأسر والأفراد، تسجيل الافتقاد والاعترافات، تسيير المساعدات المالية وإخوة الرب، واستخراج التقارير والبطاقات التعريفية بالباركود بكل سهولة وأمان.
+          </p>
+          <div class="hero-actions">
+            <a href="#download" class="btn btn-primary"><i class="fa-solid fa-download"></i> تحميل النظام الآن</a>
+            <a href="#features" class="btn btn-secondary"><i class="fa-solid fa-circle-info"></i> اكتشف المميزات</a>
+          </div>
+        </div>
+        
+        <div class="hero-visual">
+          <div class="mock-window glass">
+            <div class="window-header">
+              <div class="window-controls">
+                <span class="window-dot dot-red"></span>
+                <span class="window-dot dot-yellow"></span>
+                <span class="window-dot dot-green"></span>
+              </div>
+              <span class="window-title">العضوية الكنسية - تسجيل الدخول</span>
+              <div></div>
+            </div>
+            <div class="window-body">
+              <div class="mock-sidebar">
+                <div class="mock-sb-item active"><i class="fa-solid fa-church"></i></div>
+                <div class="mock-sb-item"><i class="fa-solid fa-users"></i></div>
+                <div class="mock-sb-item"><i class="fa-solid fa-address-card"></i></div>
+                <div class="mock-sb-item"><i class="fa-solid fa-coins"></i></div>
+              </div>
+              <div class="mock-content">
+                <div class="mock-logo-glow"></div>
+                <div class="mock-login-card">
+                  <div class="mock-login-title">برنامج العضوية الكنسية</div>
+                  <input type="text" class="mock-input" value="admin" readonly>
+                  <input type="password" class="mock-input" value="••••" readonly>
+                  <button class="mock-login-btn">دخول للنظام</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Key Features Section -->
+  <section class="features-section" id="features">
+    <div class="container">
+      <div class="section-title-wrapper">
+        <span class="section-subtitle">قدرات متميزة</span>
+        <h2 class="section-title">أهم مميزات النظام</h2>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card glass">
+          <div class="feature-icon"><i class="fa-solid fa-people-roof"></i></div>
+          <h3>إدارة الأسر والأفراد</h3>
+          <p>تنظيم البيانات التفصيلية للأسر الكنسية مع تفاصيل الحالة الاجتماعية، الصحية، الوظيفة، وصلة القرابة لكل فرد على حدة.</p>
+        </div>
+
+        <div class="feature-card glass">
+          <div class="feature-icon"><i class="fa-solid fa-route"></i></div>
+          <h3>نظام الافتقاد الذكي</h3>
+          <p>تسجيل زيارات الافتقاد ومتابعتها وتنبيه الخدام بالزيارات المتأخرة لضمان دوام التواصل والرعاية لكافة الأعضاء.</p>
+        </div>
+
+        <div class="feature-card glass">
+          <div class="feature-icon"><i class="fa-solid fa-cross"></i></div>
+          <h3>سر الاعتراف المقدس</h3>
+          <p>توثيق اعترافات الأعضاء وربط كل فرد بأب اعترافه من الآباء الكهنة بشكل آمن وسري تماماً يحفظ خصوصية البيانات.</p>
+        </div>
+
+        <div class="feature-card glass">
+          <div class="feature-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+          <h3>المساعدات والمالية</h3>
+          <p>حساب وإدارة المساعدات الشهرية والاستثنائية لإخوة الرب، وتسجيل المصروفات وبنود الصرف المتنوعة بدقة متناهية.</p>
+        </div>
+
+        <div class="feature-card glass">
+          <div class="feature-icon"><i class="fa-solid fa-id-card"></i></div>
+          <h3>طباعة كارنيهات العضوية</h3>
+          <p>إنشاء وتصميم كارنيهات العضوية للأفراد تلقائياً مدمجاً بها رمز الباركود الفريد لتسهيل الحضور في الفعاليات المختلفة.</p>
+        </div>
+
+        <div class="feature-card glass">
+          <div class="feature-icon"><i class="fa-solid fa-chart-pie"></i></div>
+          <h3>البحث المتقدم والتقرير</h3>
+          <p>أدوات بحث قوية ومرنة مع إمكانية طباعة تقارير PDF احترافية لبيانات الأسر، أعياد الميلاد، والافتاد المتأخر.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Interactive Explorer (Tabs & Accordion) -->
+  <section class="explorer-section" id="explorer">
+    <div class="container">
+      <div class="section-title-wrapper">
+        <span class="section-subtitle">تفاصيل الوظائف</span>
+        <h2 class="section-title">دليل التبويبات والشاشات</h2>
+      </div>
+
+      <div class="explorer-layout glass">
+        <!-- Sidebar Tabs Buttons -->
+        <div class="explorer-sidebar" role="tablist">
+          <button class="explorer-tab-btn active" data-tab="tab-membership" role="tab" aria-selected="true">
+            <i class="fa-solid fa-id-card-clip"></i> إدارة العضوية
+          </button>
+          <button class="explorer-tab-btn" data-tab="tab-visitation" role="tab" aria-selected="false">
+            <i class="fa-solid fa-heart-circle-check"></i> الخدمة والافتقاد
+          </button>
+          <button class="explorer-tab-btn" data-tab="tab-financials" role="tab" aria-selected="false">
+            <i class="fa-solid fa-wallet"></i> المالية والمساعدات
+          </button>
+          <button class="explorer-tab-btn" data-tab="tab-system" role="tab" aria-selected="false">
+            <i class="fa-solid fa-sliders"></i> الإعدادات والتقارير
+          </button>
+        </div>
+
+        <!-- Explorer Content Panels -->
+        <div class="explorer-content">
+          
+          <!-- Panel 1: Membership -->
+          <div class="explorer-panel active" id="tab-membership" role="tabpanel">
+            <div class="panel-header">
+              <i class="fa-solid fa-id-card-clip"></i>
+              <h3>إدارة العضوية والأسر</h3>
+            </div>
+            
+            <div class="accordion-list">
+              <div class="accordion-item active">
+                <button class="accordion-trigger">
+                  <span class="accordion-title-wrapper">
+                    <i class="fa-solid fa-house-chimney-window"></i>
+                    إدراج الأسر والبحث المتقدم
+                    <span class="accordion-badge">رئيسي</span>
+                  </span>
+                  <i class="fa-solid fa-chevron-down chevron"></i>
+                </button>
+                <div class="accordion-content" style="max-height: 500px;">
+                  <div class="accordion-body">
+                    تتيح الشاشة إضافة أسر جديدة بالكامل وتوثيق بيانات السكن، وتفاصيل الأفراد بداخلها.
+                    <ul>
+                      <li>إضافة وحفظ بيانات الأسرة الأساسية كالعنوان ورقم الهاتف.</li>
+                      <li>تسجيل أفراد الأسرة وتحديد صلة القرابة والعمل والحالة الاجتماعية والصحية.</li>
+                      <li>بحث سريع ومتطور باسم الأسرة، العنوان، أو أسماء الأفراد بداخلها.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <button class="accordion-trigger">
+                  <span class="accordion-title-wrapper">
+                    <i class="fa-solid fa-barcode"></i>
+                    طباعة بطاقات العضوية (الكارنيهات)
+                    <span class="accordion-badge">أدوات</span>
+                  </span>
+                  <i class="fa-solid fa-chevron-down chevron"></i>
+                </button>
+                <div class="accordion-content">
+                  <div class="accordion-body">
+                    يمكن النظام المسؤول من تصميم واستخراج كارنيهات العضوية الكنسية لسهولة رعاية وتنظيم الأنشطة.
+                    <ul>
+                      <li>توليد تلقائي للباركود لكل عضو يربطه بقاعدة البيانات.</li>
+                      <li>تصميم جاهز للطباعة للكارنيه يحتوي على الاسم، الصورة، الباركود، ورقم الهوية الكنسية.</li>
+                      <li>إمكانية طباعة الكارنيهات لجميع الأفراد أو أفراد أسرة محددة دفعة واحدة.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 2: Visitation -->
+          <div class="explorer-panel" id="tab-visitation" role="tabpanel">
+            <div class="panel-header">
+              <i class="fa-solid fa-heart-circle-check"></i>
+              <h3>الخدمة ومتابعة الرعاية</h3>
+            </div>
+
+            <div class="accordion-list">
+              <div class="accordion-item">
+                <button class="accordion-trigger">
+                  <span class="accordion-title-wrapper">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    تسجيل ومتابعة الافتقاد
+                    <span class="accordion-badge">رعاية</span>
+                  </span>
+                  <i class="fa-solid fa-chevron-down chevron"></i>
+                </button>
+                <div class="accordion-content">
+                  <div class="accordion-body">
+                    يسهل على الخدام والآباء الكهنة متابعة أحوال الرعية وتسجيل تواريخ ونتائج الافتقاد.
+                    <ul>
+                      <li>تسجيل تواريخ الافتقاد وتحديد نوع الافتقاد والملاحظات.</li>
+                      <li>تنبيهات تلقائية للأسر التي لم يتم افتقادها منذ فترات زمنية طويلة.</li>
+                      <li>توزيع وتكليف الخدام بمهام افتقاد لأسر محددة بالمناطق والشوارع.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <button class="accordion-trigger">
+                  <span class="accordion-title-wrapper">
+                    <i class="fa-solid fa-church"></i>
+                    سجل الاعترافات والآباء الكهنة
+                    <span class="accordion-badge">سري</span>
+                  </span>
+                  <i class="fa-solid fa-chevron-down chevron"></i>
+                </button>
+                <div class="accordion-content">
+                  <div class="accordion-body">
+                    قسم خاص ومحمي لتسجيل جلسات سر الاعتراف المقدس بالتنسيق مع الآباء الكهنة.
+                    <ul>
+                      <li>ربط كل فرد بأب اعترافه من الآباء الكهنة المسجلين بالنظام.</li>
+                      <li>سجل تواريخ الاعترافات الخاصة بكل فرد لمتابعة النمو الروحي.</li>
+                      <li>مستويات أمان متقدمة تمنع غير المصرح لهم من الاطلاع على تواريخ وجلسات الاعتراف.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 3: Financials -->
+          <div class="explorer-panel" id="tab-financials" role="tabpanel">
+            <div class="panel-header">
+              <i class="fa-solid fa-wallet"></i>
+              <h3>المالية والمساعدات المالية</h3>
+            </div>
+
+            <div class="accordion-list">
+              <div class="accordion-item">
+                <button class="accordion-trigger">
+                  <span class="accordion-title-wrapper">
+                    <i class="fa-solid fa-calculator"></i>
+                    حساب ومساعدات إخوة الرب
+                    <span class="accordion-badge">حسابات</span>
+                  </span>
+                  <i class="fa-solid fa-chevron-down chevron"></i>
+                </button>
+                <div class="accordion-content">
+                  <div class="accordion-body">
+                    إدارة شاملة ومحاسبية لحالات إخوة الرب، وتحديد الفئات المالية المستحقة بناء على البيانات المسجلة.
+                    <ul>
+                      <li>تسجيل المساعدات الدورية (الشهرية) والمساعدات الاستثنائية (الأعياد، العلاج، المدارس).</li>
+                      <li>عمليات حسابية دقيقة لمعرفة المبالغ المطلوبة شهرياً وإجمالي المساعدات الموزعة.</li>
+                      <li>توليد تقارير PDF مفصلة بالحالات المستحقة للمساعدات مع مراعاة السرية التامة للبيانات.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <button class="accordion-trigger">
+                  <span class="accordion-title-wrapper">
+                    <i class="fa-solid fa-receipt"></i>
+                    إدارة المصروفات وبنود الصرف
+                    <span class="accordion-badge">مالية</span>
+                  </span>
+                  <i class="fa-solid fa-chevron-down chevron"></i>
+                </button>
+                <div class="accordion-content">
+                  <div class="accordion-body">
+                    توثيق كافة المصاريف اليومية والبنود المالية المرتبطة بالخدمات والمباني والأنشطة الكنسية.
+                    <ul>
+                      <li>تسجيل تفصيلي للمصروفات مع تحديد تاريخ الصرف والمستلم والملاحظات والبنود.</li>
+                      <li>شاشة بحث ذكية في المصروفات حسب الفترة الزمنية، القيمة، أو البند المحدد.</li>
+                      <li>تسهيل المراجعة المالية والحصول على إحصائيات فورية حول مجمل المصروفات الكنسية.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 4: Settings -->
+          <div class="explorer-panel" id="tab-system" role="tabpanel">
+            <div class="panel-header">
+              <i class="fa-solid fa-sliders"></i>
+              <h3>إدارة النظام والتقارير</h3>
+            </div>
+
+            <div class="accordion-list">
+              <div class="accordion-item">
+                <button class="accordion-trigger">
+                  <span class="accordion-title-wrapper">
+                    <i class="fa-solid fa-user-shield"></i>
+                    صلاحيات المستخدمين والنسخ الاحتياطي
+                    <span class="accordion-badge">أمان</span>
+                  </span>
+                  <i class="fa-solid fa-chevron-down chevron"></i>
+                </button>
+                <div class="accordion-content">
+                  <div class="accordion-body">
+                    يحتوي النظام على لوحة تحكم كاملة للمسؤول تضمن سلامة وأمن البيانات والتحكم في صلاحيات الوصول.
+                    <ul>
+                      <li>إضافة مستخدمين بكلمات سر مخصصة، وتحديد شاشات معينة يحق لكل مستخدم رؤيتها أو إدارتها.</li>
+                      <li>نظام نسخ احتياطي مدمج يتيح حفظ قاعدة البيانات في مكان آمن واستعادتها في أي وقت بسهولة.</li>
+                      <li>إدارة شاملة للقوائم المنسدلة (Lookups) كالمراحل التعليمية، المهن، الحالات الاجتماعية لتسهيل الإدخال.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <button class="accordion-trigger">
+                  <span class="accordion-title-wrapper">
+                    <i class="fa-solid fa-file-pdf"></i>
+                    توليد التقارير المتنوعة والطباعة
+                    <span class="accordion-badge">إحصائيات</span>
+                  </span>
+                  <i class="fa-solid fa-chevron-down chevron"></i>
+                </button>
+                <div class="accordion-content">
+                  <div class="accordion-body">
+                    تصميم مرن للتقارير يمنح متخذي القرار القدرة على الوصول لبيانات دقيقة واضحة ومطبوعة.
+                    <ul>
+                      <li>تقارير أعياد الميلاد لمعرفة المواليد في فترات زمنية لتقديم التهنئة والافتقاد.</li>
+                      <li>تقارير إخوة الرب، بيانات الأسر حسب الشارع أو المنطقة بالتفصيل.</li>
+                      <li>تصوير وتصدير البيانات مباشرة إلى صيغة PDF بجودة عالية وتصميمات منسقة سهلة القراءة.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Downloads & Credentials Section -->
+  <section class="downloads-section" id="download">
+    <div class="container">
+      <div class="section-title-wrapper">
+        <span class="section-subtitle">احصل على النظام</span>
+        <h2 class="section-title">التحميل والتشغيل</h2>
+      </div>
+
+      <!-- Gold Credentials Card -->
+      <div class="credentials-card">
+        <div class="cred-text">
+          <h3><i class="fa-solid fa-key"></i> بيانات الدخول الافتراضية</h3>
+          <p>بعد تثبيت البرنامج، استخدم البيانات التالية لتسجيل الدخول كمسؤول كامل الصلاحيات:</p>
+        </div>
+        
+        <div class="cred-boxes">
+          <div class="cred-box">
+            <div>
+              <span class="cred-label">اسم المستخدم</span>
+              <span class="cred-val" id="username-val">admin</span>
+            </div>
+            <button class="btn-copy" onclick="copyText('admin', 'اسم المستخدم')" title="نسخ اسم المستخدم"><i class="fa-regular fa-copy"></i></button>
+          </div>
+
+          <div class="cred-box">
+            <div>
+              <span class="cred-label">كلمة السر</span>
+              <span class="cred-val" id="password-val">1234</span>
+            </div>
+            <button class="btn-copy" onclick="copyText('1234', 'كلمة السر')" title="نسخ كلمة السر"><i class="fa-regular fa-copy"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Download Options Grid -->
+      <div class="downloads-grid">
+        <!-- Windows Download Card -->
+        <div class="download-card windows glass">
+          <i class="fa-brands fa-windows platform-icon"></i>
+          <h3>نسخة الكمبيوتر (Windows)</h3>
+          <p>نسخة متكاملة ومحسنة للعمل على أجهزة الكمبيوتر والمكتب. تدعم تشغيل الأجهزة الطرفية كالطابعات وقارئ الباركود بكل سلاسة.</p>
+          <a href="https://github.com/UuWagdy/ChurchMermbership/releases/download/v1.0.0/ChurchMembership-Windows.zip" class="btn btn-primary" target="_blank"><i class="fa-solid fa-file-zipper"></i> تنزيل لـ Windows (.zip)</a>
+        </div>
+
+        <!-- Android Download Card -->
+        <div class="download-card android glass">
+          <i class="fa-brands fa-android platform-icon"></i>
+          <h3>نسخة الموبايل (Android)</h3>
+          <p>تابع قاعدة البيانات وافتقد الأسر وسجل بيانات الاعترافات مباشرة أثناء حركتك وتجوالك الميداني بكل مرونة وسهولة.</p>
+          <a href="https://github.com/UuWagdy/ChurchMermbership/releases/download/v1.0.0/app-release.apk" class="btn btn-accent" target="_blank"><i class="fa-solid fa-file-apk"></i> تنزيل للأندرويد (APK)</a>
+        </div>
+      </div>
+
+      <!-- Info Boxes (GitHub & Prerequisites) -->
+      <div class="info-boxes">
+        <!-- Open Source Block (Blue) -->
+        <div class="info-box box-blue">
+          <i class="fa-brands fa-github"></i>
+          <div class="info-box-text">
+            <h4>كود المصدر مفتوح (Open Source)</h4>
+            <p>
+              هذا البرنامج مجاني ومفتوح المصدر بالكامل ومتاح للجميع للتطوير أو التعديل. يمكنك تصفح كود المشروع والمساهمة فيه عبر مستودع <a href="https://github.com/UuWagdy/ChurchMermbership" target="_blank">GitHub</a>.
+            </p>
+          </div>
+        </div>
+
+        <!-- Prerequisites Block (Red) -->
+        <div class="info-box box-red">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div class="info-box-text">
+            <h4>متطلبات التشغيل الأساسية</h4>
+            <p>
+              <strong>ويندوز:</strong> نظام Windows 10 أو 11 بمعمارية 64-bit.<br>
+              <strong>أندرويد:</strong> إصدار Android 5.0 (Lollipop) أو أحدث.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Developers Section -->
+  <section class="developers-section" id="developers">
+    <div class="container">
+      <div class="section-title-wrapper">
+        <span class="section-subtitle">فريق العمل</span>
+        <h2 class="section-title">فريق التطوير والبرمجة</h2>
+      </div>
+
+      <div class="developers-grid">
+        <!-- Developer 1: George -->
+        <div class="dev-card glass">
+          <div class="dev-avatar">
+            <img src="./public/images/csharp_logo.png" alt="C# Logo">
+          </div>
+          <h3 class="dev-name">م. جورج منير</h3>
+          <span class="dev-role">مطور النسخة الأصلية (C#)</span>
+          <p style="font-size: 13.5px; color: var(--text-muted);">قام بوضع الأساس الفني والبرمجي للنظام في نسخته الأصلية وتطوير الهيكل الهيكلي للبيانات.</p>
+        </div>
+
+        <!-- Developer 2: Youssab -->
+        <div class="dev-card glass">
+          <div class="dev-avatar">
+            <img src="./public/images/flutter_logo.png" alt="Flutter Logo">
+          </div>
+          <h3 class="dev-name">د. يوساب وجدي</h3>
+          <span class="dev-role">تصميم وتطوير النسخة الحالية (Flutter)</span>
+          <p style="font-size: 13.5px; color: var(--text-muted);">قام بإعادة كتابة وهيكلة وتصميم النظام باستخدام Flutter ليناسب شاشات الأندرويد والكمبيوتر وتطوير واجهات عصرية.</p>
+          <a href="tel:01036976446" class="dev-phone"><i class="fa-solid fa-phone"></i> 01036976446</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Footer Section -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <a href="#" class="logo-area">
+            <img src="./public/logo.png" alt="شعار العضوية الكنسية" class="logo-img">
+            <span class="logo-text">العضوية الكنسية</span>
+          </a>
+          <p style="margin-top: 12px;">
+            نظام تكنولوجي رائد لإدارة وتسهيل رعاية الكنائس والأسر والأفراد، ودعم الخدمات الكنسية بلمسات تقنية حديثة وسهلة الاستخدام وآمنة.
+          </p>
+        </div>
+
+        <div class="footer-links-col">
+          <h4>روابط سريعة</h4>
+          <ul class="footer-links">
+            <li><a href="#">الرئيسية</a></li>
+            <li><a href="#features">المميزات</a></li>
+            <li><a href="#explorer">دليل التبويبات</a></li>
+            <li><a href="#download">التحميل والتشغيل</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-links-col">
+          <h4>الروابط الخارجية</h4>
+          <ul class="footer-links">
+            <li><a href="https://github.com/UuWagdy/ChurchMermbership" target="_blank"><i class="fa-brands fa-github"></i> كود المصدر على GitHub</a></li>
+            <li><a href="https://github.com/UuWagdy/ChurchMermbership/releases" target="_blank"><i class="fa-solid fa-tag"></i> جميع الإصدارات والتحديثات</a></li>
+            <li><a href="tel:01036976446"><i class="fa-solid fa-headset"></i> الدعم الفني والتعديلات</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>جميع الحقوق محفوظة &copy; 2026. تصميم وتطوير د. يوساب وجدي & م. جورج منير.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- PWA Install Banner -->
+  <div class="pwa-banner glass" id="pwa-banner">
+    <img src="./public/logo.png" alt="شعار التطبيق" class="pwa-banner-logo">
+    <div class="pwa-banner-text">
+      <h5>تثبيت تطبيق العضوية الكنسية</h5>
+      <p>يمكنك تثبيت هذا الموقع كتطبيق PWA خفيف ومستقل والوصول إليه سريعاً من شاشتك الرئيسية.</p>
+    </div>
+    <div class="pwa-banner-actions">
+      <button class="btn btn-primary" id="btn-install-pwa">تثبيت التطبيق</button>
+      <button class="btn btn-secondary" id="btn-close-pwa">لاحقاً</button>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div class="toast" id="toast">تم نسخ اسم المستخدم بنجاح!</div>
+
+  <script>
+    // 1. Mobile Menu Toggle
+    const hamburger = document.getElementById('hamburger');
+    const navLinks = document.getElementById('nav-links');
+
+    hamburger.addEventListener('click', () => {
+      hamburger.classList.toggle('active');
+      navLinks.classList.toggle('active');
+    });
+
+    // Close menu when clicking link
+    document.querySelectorAll('.nav-link').forEach(link => {
+      link.addEventListener('click', () => {
+        hamburger.classList.remove('active');
+        navLinks.classList.remove('active');
+      });
+    });
+
+    // 2. Header Scroll Effect
+    const header = document.getElementById('header');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 50) {
+        header.classList.add('scrolled');
+      } else {
+        header.classList.remove('scrolled');
+      }
+    });
+
+    // 3. Interactive Explorer Tabs Logic
+    const tabButtons = document.querySelectorAll('.explorer-tab-btn');
+    const panels = document.querySelectorAll('.explorer-panel');
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        // Deactivate all
+        tabButtons.forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-selected', 'false');
+        });
+        panels.forEach(p => p.classList.remove('active'));
+
+        // Activate current
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+        const targetTab = btn.getAttribute('data-tab');
+        document.getElementById(targetTab).classList.add('active');
+      });
+    });
+
+    // 4. Accordion Logic (Single Open behavior)
+    const accordionItems = document.querySelectorAll('.accordion-item');
+
+    accordionItems.forEach(item => {
+      const trigger = item.querySelector('.accordion-trigger');
+      const content = item.querySelector('.accordion-content');
+
+      trigger.addEventListener('click', () => {
+        const isActive = item.classList.contains('active');
+
+        // Close all accordions in the active panel
+        const currentPanel = item.closest('.explorer-panel');
+        const panelItems = currentPanel.querySelectorAll('.accordion-item');
+        panelItems.forEach(pi => {
+          pi.classList.remove('active');
+          pi.querySelector('.accordion-content').style.maxHeight = null;
+        });
+
+        // Open current if it wasn't active
+        if (!isActive) {
+          item.classList.add('active');
+          content.style.maxHeight = content.scrollHeight + 'px';
+        }
+      });
+    });
+
+    // 5. Copy Credentials Utility
+    const toast = document.getElementById('toast');
+    function copyText(text, label) {
+      navigator.clipboard.writeText(text).then(() => {
+        toast.textContent = `تم نسخ ${label} بنجاح!`;
+        toast.style.display = 'block';
+        setTimeout(() => {
+          toast.style.display = 'none';
+        }, 2500);
+      }).catch(err => {
+        console.error('Failed to copy text: ', err);
+      });
+    }
+
+    // 6. PWA Integration & Install Banner
+    let deferredPrompt;
+    const pwaBanner = document.getElementById('pwa-banner');
+    const btnInstall = document.getElementById('btn-install-pwa');
+    const btnClose = document.getElementById('btn-close-pwa');
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('Service Worker registered successfully with scope: ', reg.scope))
+          .catch(err => console.error('Service Worker registration failed: ', err));
+      });
+    }
+
+    // Intercept Installation Prompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Prevent Chrome 67 and earlier from automatically showing the prompt
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      deferredPrompt = e;
+      // Show the install banner after a short delay
+      setTimeout(() => {
+        pwaBanner.style.display = 'flex';
+      }, 3000);
+    });
+
+    btnInstall.addEventListener('click', () => {
+      // Hide the install banner
+      pwaBanner.style.display = 'none';
+      // Show the install prompt
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        // Wait for the user to respond to the prompt
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('User accepted the install prompt');
+          } else {
+            console.log('User dismissed the install prompt');
+          }
+          deferredPrompt = null;
+        });
+      }
+    });
+
+    btnClose.addEventListener('click', () => {
+      pwaBanner.style.display = 'none';
+    });
+
+    // Hide banner if installed successfully
+    window.addEventListener('appinstalled', (evt) => {
+      console.log('App was successfully installed');
+      pwaBanner.style.display = 'none';
+    });
+  </script>
+</body>
+</html>

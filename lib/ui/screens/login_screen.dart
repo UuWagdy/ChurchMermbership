@@ -90,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text('برنامج العضوية الكنسية', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                    const Text('العضوية الكنسية', style: TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 32),
                     if (_isLoadingUsers)
                       const CircularProgressIndicator()

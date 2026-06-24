@@ -42,6 +42,16 @@ class LookupRepository {
     return List.generate(maps.length, (i) => Street.fromMap(maps[i]));
   }
 
+  Future<List<Street>> getStreetsForAreas(List<int> areaIds) async {
+    if (areaIds.isEmpty) return [];
+    final db = await _dbHelper.database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery(
+      'SELECT * FROM streets WHERE area_id IN (${areaIds.map((_) => '?').join(',')}) ORDER BY street_name ASC',
+      areaIds,
+    );
+    return List.generate(maps.length, (i) => Street.fromMap(maps[i]));
+  }
+
   Future<int> insertStreet(Street street) async {
     final db = await _dbHelper.database;
     return await db.insert('streets', street.toMap());

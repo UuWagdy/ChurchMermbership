@@ -16,6 +16,7 @@ import 'ui/screens/family/family_form_screen.dart';
 import 'ui/screens/areas/areas_screen.dart';
 import 'ui/screens/fathers/fathers_screen.dart';
 import 'ui/screens/lookups/stages_screen.dart';
+import 'ui/screens/lookups/stage_promotion_screen.dart';
 import 'ui/screens/lookups/services_screen.dart';
 import 'ui/screens/lookups/lookup_management_screen.dart';
 import 'ui/screens/tracking/occasions_screen.dart';
@@ -72,6 +73,7 @@ class AbonaFlemoonApp extends StatelessWidget {
           '/areas': (context) => const AreasScreen(),
           '/fathers': (context) => const FathersScreen(),
           '/stages': (context) => const StagesScreen(),
+          '/promote-stages': (context) => const StagesPromotionScreen(),
           '/services': (context) => const ServicesScreen(),
           '/occasions': (context) => const OccasionsScreen(),
           '/birthdays': (context) => const BirthdaysScreen(),

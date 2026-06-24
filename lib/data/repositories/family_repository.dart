@@ -12,7 +12,7 @@ class FamilyRepository {
       LEFT JOIN person p ON o.osra_id = p.osra_id
       ${query != null && query.isNotEmpty ? "WHERE o.osra_name LIKE '%$query%'" : ""}
       GROUP BY o.osra_id
-      ORDER BY o.osra_id DESC
+      ORDER BY CASE WHEN o.code IS NULL THEN 1 ELSE 0 END, o.code ASC
     ''';
     final List<Map<String, dynamic>> maps = await db.rawQuery(sql);
     return List.generate(maps.length, (i) => Family.fromMap(maps[i]));
@@ -74,6 +74,21 @@ class FamilyRepository {
     ''';
     return await db.rawQuery(query);
   }
+
+  Future<List<Map<String, dynamic>>> getFamiliesWithLastVisit(List<int> areaIds) async {
+    if (areaIds.isEmpty) return [];
+    final db = await _dbHelper.database;
+    final String sql = '''
+      SELECT o.osra_id, o.osra_name, o.code, o.dalil_name, s.street_name, a.area_name,
+             (SELECT MAX(v.date) FROM visits v WHERE v.osra_id = o.osra_id) as last_visit_date
+      FROM osra o
+      LEFT JOIN streets s ON o.street_id = s.street_id
+      LEFT JOIN areas a ON o.area_id = a.area_id
+      WHERE o.area_id IN (${areaIds.map((_) => '?').join(',')})
+      ORDER BY CASE WHEN o.code IS NULL THEN 1 ELSE 0 END, o.code ASC
+    ''';
+    return await db.rawQuery(sql, areaIds);
+  }
 }
 
 class PersonRepository {
@@ -118,5 +133,26 @@ class PersonRepository {
   Future<int> deletePerson(int id) async {
     final db = await _dbHelper.database;
     return await db.delete('person', where: 'person_id = ?', whereArgs: [id]);
+  }
+
+  Future<List<Person>> getPersonsByStage(int stageId) async {
+    final db = await _dbHelper.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'person',
+      where: 'stage_id = ?',
+      whereArgs: [stageId],
+    );
+    return List.generate(maps.length, (i) => Person.fromMap(maps[i]));
+  }
+
+  Future<int> promotePersonsStage(List<int> personIds, int toStageId) async {
+    if (personIds.isEmpty) return 0;
+    final db = await _dbHelper.database;
+    return await db.update(
+      'person',
+      {'stage_id': toStageId},
+      where: "person_id IN (${personIds.map((_) => '?').join(',')})",
+      whereArgs: personIds,
+    );
   }
 }

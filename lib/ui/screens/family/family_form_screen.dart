@@ -40,10 +40,17 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
 
   List<Person> _persons = [];
 
+  // Extracted National ID data
+  String? _extractedGov;
+  String? _extractedGender;
+  int? _extractedAge;
+  DateTime? _extractedBirthDate;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _rakmKomyController.addListener(_onNationalIdChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final lookup = Provider.of<LookupProvider>(context, listen: false);
       await lookup.loadAllLookups();
@@ -77,6 +84,110 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
         _loadPersons();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _rakmKomyController.removeListener(_onNationalIdChanged);
+    _rakmKomyController.dispose();
+    super.dispose();
+  }
+
+  void _onNationalIdChanged() {
+    final text = _rakmKomyController.text.trim();
+    if (text.length == 14) {
+      final parsed = _parseNationalId(text);
+      if (parsed != null) {
+        setState(() {
+          _extractedBirthDate = parsed['birthDate'] as DateTime;
+          _extractedGov = parsed['governorate'] as String;
+          _extractedGender = parsed['gender'] as String;
+          _extractedAge = parsed['age'] as int;
+        });
+      }
+    } else {
+      if (_extractedGov != null || _extractedGender != null || _extractedAge != null) {
+        setState(() {
+          _extractedGov = null;
+          _extractedGender = null;
+          _extractedAge = null;
+          _extractedBirthDate = null;
+        });
+      }
+    }
+  }
+
+  Map<String, dynamic>? _parseNationalId(String id) {
+    if (id.length != 14) return null;
+    final first = int.tryParse(id[0]);
+    if (first == null || (first != 2 && first != 3)) return null;
+
+    final yearStr = id.substring(1, 3);
+    final monthStr = id.substring(3, 5);
+    final dayStr = id.substring(5, 7);
+    final govStr = id.substring(7, 9);
+    final genderDigit = int.tryParse(id[12]);
+
+    final yearPrefix = (first == 2) ? "19" : "20";
+    final fullYear = int.tryParse("$yearPrefix$yearStr");
+    final month = int.tryParse(monthStr);
+    final day = int.tryParse(dayStr);
+
+    if (fullYear == null || month == null || day == null) return null;
+
+    DateTime birthDate;
+    try {
+      birthDate = DateTime(fullYear, month, day);
+    } catch (_) {
+      return null;
+    }
+
+    final Map<String, String> governorates = {
+      "01": "القاهرة",
+      "02": "الإسكندرية",
+      "03": "بورسعيد",
+      "04": "السويس",
+      "11": "دمياط",
+      "12": "الدقهلية",
+      "13": "الشرقية",
+      "14": "القليوبية",
+      "15": "كفر الشيخ",
+      "16": "الغربية",
+      "17": "المنوفية",
+      "18": "البحيرة",
+      "19": "الإسماعيلية",
+      "21": "الجيزة",
+      "22": "بني سويف",
+      "23": "الفيوم",
+      "24": "المنيا",
+      "25": "أسيوط",
+      "26": "سوهاج",
+      "27": "قنا",
+      "28": "أسوان",
+      "29": "الأقصر",
+      "31": "البحر الأحمر",
+      "32": "الوادي الجديد",
+      "33": "مطروح",
+      "34": "شمال سيناء",
+      "35": "جنوب سيناء",
+      "88": "خارج الجمهورية",
+    };
+
+    final governorate = governorates[govStr] ?? "غير محدد";
+    final gender = (genderDigit != null && genderDigit % 2 == 1) ? "ذكر" : "أنثى";
+
+    final now = DateTime.now();
+    int age = now.year - birthDate.year;
+    if (now.month < birthDate.month || (now.month == birthDate.month && now.day < birthDate.day)) {
+      age--;
+    }
+
+    return {
+      "birthDate": birthDate,
+      "governorate": governorate,
+      "gender": gender,
+      "age": age,
+    };
   }
 
   Future<void> _loadPersons() async {
@@ -426,6 +537,44 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
               ),
             ],
           ),
+          if (_extractedGov != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.teal.shade50, Colors.cyan.shade50],
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.teal.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.badge, size: 16, color: Colors.teal.shade700),
+                      const SizedBox(width: 6),
+                      Text('الناتج من الرقم القومي', style: TextStyle(color: Colors.teal.shade800, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildNidChip(Icons.location_on, 'المحافظة: $_extractedGov'),
+                      _buildNidChip(Icons.person, 'النوع: $_extractedGender'),
+                      _buildNidChip(Icons.cake, 'تاريخ الميلاد: ${_extractedBirthDate!.toLocal().toString().split(' ')[0]}'),
+                      _buildNidChip(Icons.access_time, 'السن: $_extractedAge سنة'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Wrap(
             spacing: 16.0,
@@ -467,6 +616,28 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
             ],
           ),
           const SizedBox(height: 80), // Space for FAB
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNidChip(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.teal.shade100.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.teal.shade300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.teal.shade700),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(color: Colors.teal.shade900, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
@@ -695,9 +866,15 @@ class _PersonFormDialogState extends State<PersonFormDialog> {
   int? _selectedStage;
   int? _selectedFather;
 
+  // Extracted National ID data
+  String? _extractedGov;
+  String? _extractedGender;
+  int? _extractedAge;
+
   @override
   void initState() {
     super.initState();
+    _rakmKomyController.addListener(_onNationalIdChanged);
     if (widget.existingPerson != null) {
       final p = widget.existingPerson!;
       _nameController.text = p.personName;
@@ -712,6 +889,112 @@ class _PersonFormDialogState extends State<PersonFormDialog> {
       _selectedStage = p.stageId;
       _selectedFather = p.fatherId;
     }
+  }
+
+  @override
+  void dispose() {
+    _rakmKomyController.removeListener(_onNationalIdChanged);
+    _rakmKomyController.dispose();
+    _nameController.dispose();
+    _mobileController.dispose();
+    _jobController.dispose();
+    super.dispose();
+  }
+
+  void _onNationalIdChanged() {
+    final text = _rakmKomyController.text.trim();
+    if (text.length == 14) {
+      final parsed = _parseNationalId(text);
+      if (parsed != null) {
+        setState(() {
+          _birthDate = parsed['birthDate'] as DateTime;
+          _extractedGov = parsed['governorate'] as String;
+          _extractedGender = parsed['gender'] as String;
+          _extractedAge = parsed['age'] as int;
+        });
+      }
+    } else {
+      if (_extractedGov != null || _extractedGender != null || _extractedAge != null) {
+        setState(() {
+          _extractedGov = null;
+          _extractedGender = null;
+          _extractedAge = null;
+        });
+      }
+    }
+  }
+
+  Map<String, dynamic>? _parseNationalId(String id) {
+    if (id.length != 14) return null;
+    final first = int.tryParse(id[0]);
+    if (first == null || (first != 2 && first != 3)) return null;
+
+    final yearStr = id.substring(1, 3);
+    final monthStr = id.substring(3, 5);
+    final dayStr = id.substring(5, 7);
+    final govStr = id.substring(7, 9);
+    final genderDigit = int.tryParse(id[12]);
+
+    final yearPrefix = (first == 2) ? "19" : "20";
+    final fullYear = int.tryParse("$yearPrefix$yearStr");
+    final month = int.tryParse(monthStr);
+    final day = int.tryParse(dayStr);
+
+    if (fullYear == null || month == null || day == null) return null;
+
+    DateTime birthDate;
+    try {
+      birthDate = DateTime(fullYear, month, day);
+    } catch (_) {
+      return null;
+    }
+
+    final Map<String, String> governorates = {
+      "01": "القاهرة",
+      "02": "الإسكندرية",
+      "03": "بورسعيد",
+      "04": "السويس",
+      "11": "دمياط",
+      "12": "الدقهلية",
+      "13": "الشرقية",
+      "14": "القليوبية",
+      "15": "كفر الشيخ",
+      "16": "الغربية",
+      "17": "المنوفية",
+      "18": "البحيرة",
+      "19": "الإسماعيلية",
+      "21": "الجيزة",
+      "22": "بني سويف",
+      "23": "الفيوم",
+      "24": "المنيا",
+      "25": "أسيوط",
+      "26": "سوهاج",
+      "27": "قنا",
+      "28": "أسوان",
+      "29": "الأقصر",
+      "31": "البحر الأحمر",
+      "32": "الوادي الجديد",
+      "33": "مطروح",
+      "34": "شمال سيناء",
+      "35": "جنوب سيناء",
+      "88": "خارج الجمهورية",
+    };
+
+    final governorate = governorates[govStr] ?? "غير محدد";
+    final gender = (genderDigit != null && genderDigit % 2 == 1) ? "ذكر" : "أنثى";
+
+    final now = DateTime.now();
+    int age = now.year - birthDate.year;
+    if (now.month < birthDate.month || (now.month == birthDate.month && now.day < birthDate.day)) {
+      age--;
+    }
+
+    return {
+      "birthDate": birthDate,
+      "governorate": governorate,
+      "gender": gender,
+      "age": age,
+    };
   }
 
   Widget _buildPremiumField({
@@ -759,6 +1042,28 @@ class _PersonFormDialogState extends State<PersonFormDialog> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildNidChip(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.teal.shade100.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.teal.shade300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.teal.shade700),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(color: Colors.teal.shade900, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }
@@ -960,6 +1265,43 @@ class _PersonFormDialogState extends State<PersonFormDialog> {
                   ),
                 ],
               ),
+              if (_extractedGov != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.teal.shade50, Colors.cyan.shade50],
+                      begin: Alignment.topRight,
+                      end: Alignment.bottomLeft,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.teal.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.badge, size: 16, color: Colors.teal.shade700),
+                          const SizedBox(width: 6),
+                          Text('الناتج من الرقم القومي', style: TextStyle(color: Colors.teal.shade800, fontSize: 12, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildNidChip(Icons.location_on, 'المحافظة: $_extractedGov'),
+                          _buildNidChip(Icons.person, 'النوع: $_extractedGender'),
+                          _buildNidChip(Icons.cake, 'السن: $_extractedAge سنة'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               
               // Father

@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../../providers/search_provider.dart';
 import '../../../providers/lookup_provider.dart';
 import '../../../providers/family_provider.dart';
-import '../../../data/models/family_models.dart';
 import '../../../data/models/lookup_models.dart';
 import '../../../data/repositories/financial_repository.dart';
 import '../../../data/services/pdf_service.dart';
@@ -25,16 +24,55 @@ class _SearchScreenState extends State<SearchScreen> {
   final _ageMinController = TextEditingController();
   final _ageMaxController = TextEditingController();
 
-  int? _selectedArea;
+  List<int> _selectedAreaIds = [];
   int? _selectedStreet;
-  int? _selectedSocial;
-  int? _selectedEconomic;
-  int? _selectedStage;
-  int? _selectedHealth;
+  List<int> _selectedSocialIds = [];
+  List<int> _selectedEconomicIds = [];
+  List<int> _selectedStageIds = [];
+  List<int> _selectedHealthIds = [];
   int? _selectedFather;
-  int? _selectedMostwa;
-  int? _selectedKaraba;
-  String? _selectedMonth;
+  List<int> _selectedMostwaIds = [];
+  List<int> _selectedKarabaIds = [];
+  List<String> _selectedMonths = [];
+
+  // National ID filters
+  String? _nidGovCode;
+  String? _nidGender;
+  final _nidAgeMinController = TextEditingController();
+  final _nidAgeMaxController = TextEditingController();
+  DateTime? _nidBirthDateMin;
+  DateTime? _nidBirthDateMax;
+
+  static const Map<String, String> _governorates = {
+    "01": "القاهرة",
+    "02": "الإسكندرية",
+    "03": "بورسعيد",
+    "04": "السويس",
+    "11": "دمياط",
+    "12": "الدقهلية",
+    "13": "الشرقية",
+    "14": "القليوبية",
+    "15": "كفر الشيخ",
+    "16": "الغربية",
+    "17": "المنوفية",
+    "18": "البحيرة",
+    "19": "الإسماعيلية",
+    "21": "الجيزة",
+    "22": "بني سويف",
+    "23": "الفيوم",
+    "24": "المنيا",
+    "25": "أسيوط",
+    "26": "سوهاج",
+    "27": "قنا",
+    "28": "أسوان",
+    "29": "الأقصر",
+    "31": "البحر الأحمر",
+    "32": "الوادي الجديد",
+    "33": "مطروح",
+    "34": "شمال سيناء",
+    "35": "جنوب سيناء",
+    "88": "خارج الجمهورية",
+  };
 
   @override
   void initState() {
@@ -46,22 +84,28 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _onSearch() {
     Provider.of<SearchProvider>(context, listen: false).performSearch(
-      areaId: _selectedArea,
+      areaIds: _selectedAreaIds,
       streetId: _selectedStreet,
       mobile: _mobileController.text,
-      birthMonth: _selectedMonth,
+      birthMonths: _selectedMonths.isEmpty ? null : _selectedMonths,
       personCount: int.tryParse(_personCountController.text),
-      socialStatusId: _selectedSocial,
-      economicStatusId: _selectedEconomic,
-      stageId: _selectedStage,
+      socialStatusIds: _selectedSocialIds.isEmpty ? null : _selectedSocialIds,
+      economicStatusIds: _selectedEconomicIds.isEmpty ? null : _selectedEconomicIds,
+      stageIds: _selectedStageIds.isEmpty ? null : _selectedStageIds,
       job: _jobController.text,
       ageMin: int.tryParse(_ageMinController.text),
       ageMax: int.tryParse(_ageMaxController.text),
       name: _nameController.text,
-      healthStatusId: _selectedHealth,
+      healthStatusIds: _selectedHealthIds.isEmpty ? null : _selectedHealthIds,
       fatherId: _selectedFather,
-      mostwaId: _selectedMostwa,
-      karabaId: _selectedKaraba,
+      mostwaIds: _selectedMostwaIds.isEmpty ? null : _selectedMostwaIds,
+      karabaIds: _selectedKarabaIds.isEmpty ? null : _selectedKarabaIds,
+      nidGov: _nidGovCode,
+      nidGender: _nidGender,
+      nidAgeMin: int.tryParse(_nidAgeMinController.text),
+      nidAgeMax: int.tryParse(_nidAgeMaxController.text),
+      nidBirthDateMin: _nidBirthDateMin?.toIso8601String().split('T')[0],
+      nidBirthDateMax: _nidBirthDateMax?.toIso8601String().split('T')[0],
     );
   }
 
@@ -179,7 +223,15 @@ class _SearchScreenState extends State<SearchScreen> {
     final lookup = Provider.of<LookupProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('البحث المتقدم')),
+      appBar: AppBar(
+        title: const Text('البحث المتقدم'),
+        bottom: _isLoading
+            ? const PreferredSize(
+                preferredSize: Size.fromHeight(4),
+                child: LinearProgressIndicator(),
+              )
+            : null,
+      ),
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
@@ -211,17 +263,23 @@ class _SearchScreenState extends State<SearchScreen> {
                         runSpacing: 12.0,
                         children: [
                           _buildModernField(
-                            label: 'المنطقة',
-                            child: DropdownButtonFormField<int>(
-                              value: _selectedArea,
-                              decoration: const InputDecoration(border: OutlineInputBorder()),
-                              items: lookup.areas.map<DropdownMenuItem<int>>((a) => DropdownMenuItem<int>(value: a.areaId as int, child: Text(a.areaName))).toList(),
-                              onChanged: (val) {
+                            label: 'المناطق',
+                            child: _MultiSelectField<int>(
+                              label: 'المناطق',
+                              title: 'اختر المناطق',
+                              items: lookup.areas.map((a) => a.areaId!).toList(),
+                              selectedItems: _selectedAreaIds,
+                              itemLabel: (id) => lookup.areas.firstWhere((a) => a.areaId == id).areaName,
+                              onSaved: (result) {
                                 setState(() {
-                                  _selectedArea = val;
+                                  _selectedAreaIds = result;
                                   _selectedStreet = null;
                                 });
-                                if (val != null) lookup.loadStreets(val);
+                                if (_selectedAreaIds.isNotEmpty) {
+                                  lookup.loadStreetsForAreas(_selectedAreaIds);
+                                } else {
+                                  lookup.loadStreetsForAreas([]);
+                                }
                               },
                             ),
                           ),
@@ -236,11 +294,17 @@ class _SearchScreenState extends State<SearchScreen> {
                           ),
                           _buildModernField(
                             label: 'شهر الميلاد',
-                            child: DropdownButtonFormField<String>(
-                              value: _selectedMonth,
-                              decoration: const InputDecoration(border: OutlineInputBorder()),
-                              items: List.generate(12, (i) => (i + 1).toString()).map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
-                              onChanged: (val) => setState(() => _selectedMonth = val),
+                            child: _MultiSelectField<String>(
+                              label: 'شهر الميلاد',
+                              title: 'اختر شهر الميلاد',
+                              items: List.generate(12, (i) => (i + 1).toString()),
+                              selectedItems: _selectedMonths,
+                              itemLabel: (m) => m,
+                              onSaved: (result) {
+                                setState(() {
+                                  _selectedMonths = result;
+                                });
+                              },
                             ),
                           ),
                           _buildModernField(
@@ -265,47 +329,77 @@ class _SearchScreenState extends State<SearchScreen> {
                           ),
                           _buildModernField(
                             label: 'الحالة الاجتماعية',
-                            child: DropdownButtonFormField<int>(
-                              value: _selectedSocial,
-                              decoration: const InputDecoration(border: OutlineInputBorder()),
-                              items: lookup.socialStatus.map<DropdownMenuItem<int>>((s) => DropdownMenuItem<int>(value: s['hala_egtimaia_id'] as int, child: Text(s['hala_name'] as String))).toList(),
-                              onChanged: (val) => setState(() => _selectedSocial = val),
+                            child: _MultiSelectField<int>(
+                              label: 'الحالة الاجتماعية',
+                              title: 'اختر الحالة الاجتماعية',
+                              items: lookup.socialStatus.map<int>((s) => s['hala_egtimaia_id'] as int).toList(),
+                              selectedItems: _selectedSocialIds,
+                              itemLabel: (id) => lookup.socialStatus.firstWhere((s) => s['hala_egtimaia_id'] == id)['hala_name'] as String,
+                              onSaved: (result) {
+                                setState(() {
+                                  _selectedSocialIds = result;
+                                });
+                              },
                             ),
                           ),
                           _buildModernField(
                             label: 'الحالة الاقتصادية',
-                            child: DropdownButtonFormField<int>(
-                              value: _selectedEconomic,
-                              decoration: const InputDecoration(border: OutlineInputBorder()),
-                              items: lookup.economicStatus.map<DropdownMenuItem<int>>((e) => DropdownMenuItem<int>(value: e['e_s_id'] as int, child: Text(e['e_s_name'] as String))).toList(),
-                              onChanged: (val) => setState(() => _selectedEconomic = val),
+                            child: _MultiSelectField<int>(
+                              label: 'الحالة الاقتصادية',
+                              title: 'اختر الحالة الاقتصادية',
+                              items: lookup.economicStatus.map<int>((e) => e['e_s_id'] as int).toList(),
+                              selectedItems: _selectedEconomicIds,
+                              itemLabel: (id) => lookup.economicStatus.firstWhere((e) => e['e_s_id'] == id)['e_s_name'] as String,
+                              onSaved: (result) {
+                                setState(() {
+                                  _selectedEconomicIds = result;
+                                });
+                              },
                             ),
                           ),
                           _buildModernField(
                             label: 'الحالة الصحية',
-                            child: DropdownButtonFormField<int>(
-                              value: _selectedHealth,
-                              decoration: const InputDecoration(border: OutlineInputBorder()),
-                              items: lookup.healthStatus.map<DropdownMenuItem<int>>((h) => DropdownMenuItem<int>(value: h['hala_sehia_id'] as int, child: Text(h['hala_name'] as String))).toList(),
-                              onChanged: (val) => setState(() => _selectedHealth = val),
+                            child: _MultiSelectField<int>(
+                              label: 'الحالة الصحية',
+                              title: 'اختر الحالة الصحية',
+                              items: lookup.healthStatus.map<int>((h) => h['hala_sehia_id'] as int).toList(),
+                              selectedItems: _selectedHealthIds,
+                              itemLabel: (id) => lookup.healthStatus.firstWhere((h) => h['hala_sehia_id'] == id)['hala_name'] as String,
+                              onSaved: (result) {
+                                setState(() {
+                                  _selectedHealthIds = result;
+                                });
+                              },
                             ),
                           ),
                           _buildModernField(
                             label: 'المرحلة',
-                            child: DropdownButtonFormField<int>(
-                              value: _selectedStage,
-                              decoration: const InputDecoration(border: OutlineInputBorder()),
-                              items: lookup.stages.map<DropdownMenuItem<int>>((s) => DropdownMenuItem<int>(value: s['stage_id'] as int, child: Text(s['stage_name'] as String))).toList(),
-                              onChanged: (val) => setState(() => _selectedStage = val),
+                            child: _MultiSelectField<int>(
+                              label: 'المرحلة',
+                              title: 'اختر المرحلة',
+                              items: lookup.stages.map<int>((s) => s['stage_id'] as int).toList(),
+                              selectedItems: _selectedStageIds,
+                              itemLabel: (id) => lookup.stages.firstWhere((s) => s['stage_id'] == id)['stage_name'] as String,
+                              onSaved: (result) {
+                                setState(() {
+                                  _selectedStageIds = result;
+                                });
+                              },
                             ),
                           ),
                           _buildModernField(
                             label: 'المؤهل (التعليم)',
-                            child: DropdownButtonFormField<int>(
-                              value: _selectedMostwa,
-                              decoration: const InputDecoration(border: OutlineInputBorder()),
-                              items: lookup.educationLevels.map<DropdownMenuItem<int>>((m) => DropdownMenuItem<int>(value: m['mostwa_id'] as int, child: Text(m['mostwa_name'] as String))).toList(),
-                              onChanged: (val) => setState(() => _selectedMostwa = val),
+                            child: _MultiSelectField<int>(
+                              label: 'المؤهل (التعليم)',
+                              title: 'اختر المؤهل (التعليم)',
+                              items: lookup.educationLevels.map<int>((m) => m['mostwa_id'] as int).toList(),
+                              selectedItems: _selectedMostwaIds,
+                              itemLabel: (id) => lookup.educationLevels.firstWhere((m) => m['mostwa_id'] == id)['mostwa_name'] as String,
+                              onSaved: (result) {
+                                setState(() {
+                                  _selectedMostwaIds = result;
+                                });
+                              },
                             ),
                           ),
                           _buildModernField(
@@ -319,14 +413,180 @@ class _SearchScreenState extends State<SearchScreen> {
                           ),
                           _buildModernField(
                             label: 'صلة القرابة',
-                            child: DropdownButtonFormField<int>(
-                              value: _selectedKaraba,
-                              decoration: const InputDecoration(border: OutlineInputBorder()),
-                              items: lookup.karaba.map<DropdownMenuItem<int>>((k) => DropdownMenuItem<int>(value: k['karaba_id'] as int, child: Text(k['karaba_name'] as String))).toList(),
-                              onChanged: (val) => setState(() => _selectedKaraba = val),
+                            child: _MultiSelectField<int>(
+                              label: 'صلة القرابة',
+                              title: 'اختر صلة القرابة',
+                              items: lookup.karaba.map<int>((k) => k['karaba_id'] as int).toList(),
+                              selectedItems: _selectedKarabaIds,
+                              itemLabel: (id) => lookup.karaba.firstWhere((k) => k['karaba_id'] == id)['karaba_name'] as String,
+                              onSaved: (result) {
+                                setState(() {
+                                  _selectedKarabaIds = result;
+                                });
+                              },
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 16),
+                      // ═══ National ID Filters Section ═══
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Colors.teal.shade50, Colors.cyan.shade50],
+                            begin: Alignment.topRight,
+                            end: Alignment.bottomLeft,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.teal.shade200),
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.teal.shade100,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(Icons.badge, color: Colors.teal.shade700, size: 20),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'الناتج من الرقم القومي',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: Colors.teal.shade800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 12.0,
+                              runSpacing: 12.0,
+                              children: [
+                                _buildModernField(
+                                  label: 'المحافظة (من الرقم القومي)',
+                                  child: DropdownButtonFormField<String>(
+                                    value: _nidGovCode,
+                                    decoration: const InputDecoration(border: OutlineInputBorder()),
+                                    isExpanded: true,
+                                    items: [
+                                      const DropdownMenuItem<String>(value: null, child: Text('الكل')),
+                                      ..._governorates.entries.map((e) => DropdownMenuItem<String>(
+                                        value: e.key,
+                                        child: Text(e.value),
+                                      )),
+                                    ],
+                                    onChanged: (val) => setState(() => _nidGovCode = val),
+                                  ),
+                                ),
+                                _buildModernField(
+                                  label: 'النوع (من الرقم القومي)',
+                                  child: DropdownButtonFormField<String>(
+                                    value: _nidGender,
+                                    decoration: const InputDecoration(border: OutlineInputBorder()),
+                                    items: const [
+                                      DropdownMenuItem<String>(value: null, child: Text('الكل')),
+                                      DropdownMenuItem<String>(value: 'ذكر', child: Text('ذكر')),
+                                      DropdownMenuItem<String>(value: 'أنثى', child: Text('أنثى')),
+                                    ],
+                                    onChanged: (val) => setState(() => _nidGender = val),
+                                  ),
+                                ),
+                                _buildModernField(
+                                  label: 'السن من (الرقم القومي)',
+                                  child: TextField(
+                                    controller: _nidAgeMinController,
+                                    decoration: const InputDecoration(border: OutlineInputBorder()),
+                                    keyboardType: TextInputType.number,
+                                  ),
+                                ),
+                                _buildModernField(
+                                  label: 'السن إلى (الرقم القومي)',
+                                  child: TextField(
+                                    controller: _nidAgeMaxController,
+                                    decoration: const InputDecoration(border: OutlineInputBorder()),
+                                    keyboardType: TextInputType.number,
+                                  ),
+                                ),
+                                _buildModernField(
+                                  label: 'تاريخ الميلاد من',
+                                  child: InkWell(
+                                    onTap: () async {
+                                      final d = await showDatePicker(
+                                        context: context,
+                                        initialDate: _nidBirthDateMin ?? DateTime(2000),
+                                        firstDate: DateTime(1900),
+                                        lastDate: DateTime.now(),
+                                      );
+                                      if (d != null) setState(() => _nidBirthDateMin = d);
+                                    },
+                                    child: Container(
+                                      height: 56,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.grey),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            _nidBirthDateMin == null
+                                              ? 'اختر التاريخ'
+                                              : _nidBirthDateMin!.toIso8601String().split('T')[0],
+                                            style: TextStyle(fontSize: 14, color: _nidBirthDateMin == null ? Colors.grey : Colors.black),
+                                          ),
+                                          const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                _buildModernField(
+                                  label: 'تاريخ الميلاد إلى',
+                                  child: InkWell(
+                                    onTap: () async {
+                                      final d = await showDatePicker(
+                                        context: context,
+                                        initialDate: _nidBirthDateMax ?? DateTime.now(),
+                                        firstDate: DateTime(1900),
+                                        lastDate: DateTime.now(),
+                                      );
+                                      if (d != null) setState(() => _nidBirthDateMax = d);
+                                    },
+                                    child: Container(
+                                      height: 56,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.grey),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            _nidBirthDateMax == null
+                                              ? 'اختر التاريخ'
+                                              : _nidBirthDateMax!.toIso8601String().split('T')[0],
+                                            style: TextStyle(fontSize: 14, color: _nidBirthDateMax == null ? Colors.grey : Colors.black),
+                                          ),
+                                          const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 24),
                       Row(
@@ -334,7 +594,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         children: [
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: _onSearch, 
+                              onPressed: _isLoading ? null : _onSearch, 
                               icon: const Icon(Icons.search), 
                               label: const Text('بدء البحث'),
                               style: ElevatedButton.styleFrom(
@@ -346,7 +606,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           const SizedBox(width: 16),
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: searchProvider.results.isEmpty ? null : _printResults, 
+                              onPressed: (searchProvider.results.isEmpty || _isLoading) ? null : _printResults, 
                               icon: const Icon(Icons.print), 
                               label: const Text('طباعة النتائج'),
                               style: ElevatedButton.styleFrom(
@@ -443,7 +703,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               runSpacing: 8,
                               children: [
                                 _buildFamilyChip(
-                                  label: 'الأفراد: ${family.memberCount ?? 0}',
+                                  label: 'الأفراد: ${family.memberCount}',
                                   icon: Icons.people_outline,
                                   color: Colors.blue,
                                 ),
@@ -542,6 +802,127 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         );
       }
+    );
+  }
+}
+
+class _MultiSelectField<T> extends StatelessWidget {
+  final String label;
+  final String title;
+  final List<T> items;
+  final List<T> selectedItems;
+  final String Function(T) itemLabel;
+  final void Function(List<T>) onSaved;
+
+  const _MultiSelectField({
+    super.key,
+    required this.label,
+    required this.title,
+    required this.items,
+    required this.selectedItems,
+    required this.itemLabel,
+    required this.onSaved,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () async {
+        final List<T> tempSelected = List.from(selectedItems);
+        final result = await showDialog<List<T>>(
+          context: context,
+          builder: (ctx) => StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                content: SizedBox(
+                  width: 300,
+                  height: 400,
+                  child: Column(
+                    children: [
+                      CheckboxListTile(
+                        title: const Text('تحديد الكل'),
+                        value: tempSelected.length == items.length && items.isNotEmpty,
+                        onChanged: (val) {
+                          setDialogState(() {
+                            if (val == true) {
+                              tempSelected.clear();
+                              tempSelected.addAll(items);
+                            } else {
+                              tempSelected.clear();
+                            }
+                          });
+                        },
+                      ),
+                      const Divider(),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: items.length,
+                          itemBuilder: (c, idx) {
+                            final item = items[idx];
+                            final isChecked = tempSelected.contains(item);
+                            return CheckboxListTile(
+                              title: Text(itemLabel(item)),
+                              value: isChecked,
+                              onChanged: (val) {
+                                setDialogState(() {
+                                  if (val == true) {
+                                    tempSelected.add(item);
+                                  } else {
+                                    tempSelected.remove(item);
+                                  }
+                                });
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, null),
+                    child: const Text('إلغاء'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, tempSelected),
+                    child: const Text('موافق'),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+        if (result != null) {
+          onSaved(result);
+        }
+      },
+      child: Container(
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                selectedItems.isEmpty
+                    ? 'اختر $label'
+                    : selectedItems.length == items.length
+                        ? 'كل $label'
+                        : selectedItems.map(itemLabel).join('، '),
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+            const Icon(Icons.arrow_drop_down, color: Colors.grey),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -45,6 +45,11 @@ class LookupProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> loadStreetsForAreas(List<int> areaIds) async {
+    _streets = await _lookupRepo.getStreetsForAreas(areaIds);
+    notifyListeners();
+  }
+
   Future<void> addArea(String name) async {
     await _lookupRepo.insertArea(Area(areaName: name));
     _areas = await _lookupRepo.getAreas();

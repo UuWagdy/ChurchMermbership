@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/tracking_provider.dart';
-import '../../../providers/tracking_provider.dart';
 import '../../../providers/family_provider.dart';
 import '../../../data/models/family_models.dart';
+import '../../../data/models/tracking_models.dart';
 import '../../../data/services/pdf_service.dart';
 
 class ConfessionScreen extends StatefulWidget {
@@ -63,6 +63,68 @@ class _ConfessionScreenState extends State<ConfessionScreen> {
       title: 'سجل اعترافات: $personName',
       headers: headers,
       data: data,
+    );
+  }
+
+  void _editConfessionDialog(Confession confession) {
+    final editController = TextEditingController(text: confession.notes);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تعديل ملاحظات الاعتراف'),
+        content: TextField(
+          controller: editController,
+          decoration: const InputDecoration(
+            labelText: 'ملاحظات الاعتراف',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (editController.text.isNotEmpty) {
+                final updated = Confession(
+                  eatrafId: confession.eatrafId,
+                  personId: confession.personId,
+                  date: confession.date,
+                  notes: editController.text,
+                );
+                await Provider.of<TrackingProvider>(context, listen: false).updateConfession(updated);
+                if (mounted) Navigator.pop(ctx);
+              }
+            },
+            child: const Text('حفظ التعديل', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteConfessionDialog(Confession confession) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذف سجل الاعتراف'),
+        content: const Text('هل أنت متأكد من حذف سجل الاعتراف هذا بشكل نهائي؟\nلا يمكن التراجع عن هذا الإجراء.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await Provider.of<TrackingProvider>(context, listen: false).deleteConfession(confession.eatrafId!, confession.personId);
+              if (mounted) Navigator.pop(ctx);
+            },
+            child: const Text('حذف', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -196,10 +258,28 @@ class _ConfessionScreenState extends State<ConfessionScreen> {
                           itemCount: trackingProvider.confessions.length,
                           itemBuilder: (context, index) {
                             final confession = trackingProvider.confessions[index];
-                            return ListTile(
-                              leading: const Icon(Icons.church, color: Colors.deepPurple),
-                              title: Text(confession.date.split('T')[0]),
-                              subtitle: Text(confession.notes ?? 'بدون ملاحظات'),
+                            return Card(
+                              margin: const EdgeInsets.symmetric(vertical: 4),
+                              child: ListTile(
+                                leading: const Icon(Icons.church, color: Colors.deepPurple),
+                                title: Text(confession.date.split('T')[0], style: const TextStyle(fontWeight: FontWeight.bold)),
+                                subtitle: Text(confession.notes ?? 'بدون ملاحظات'),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit, color: Colors.blue),
+                                      onPressed: () => _editConfessionDialog(confession),
+                                      tooltip: 'تعديل',
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () => _deleteConfessionDialog(confession),
+                                      tooltip: 'حذف',
+                                    ),
+                                  ],
+                                ),
+                              ),
                             );
                           },
                         ),

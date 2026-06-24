@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/models/family_models.dart';
 import '../data/repositories/family_repository.dart';
+import '../data/repositories/search_repository.dart';
 
 class FamilyProvider with ChangeNotifier {
   final FamilyRepository _familyRepo = FamilyRepository();
@@ -16,6 +17,67 @@ class FamilyProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     _families = await _familyRepo.getFamilies(query: query);
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> loadFamiliesWithComplexFilters({
+    List<int>? areaIds,
+    int? streetId,
+    String? mobile,
+    List<String>? birthMonths,
+    int? personCount,
+    List<int>? socialStatusIds,
+    List<int>? economicStatusIds,
+    List<int>? stageIds,
+    String? job,
+    int? ageMin,
+    int? ageMax,
+    String? name,
+    List<int>? healthStatusIds,
+    int? fatherId,
+    List<int>? mostwaIds,
+    List<int>? karabaIds,
+    String? nidGov,
+    String? nidGender,
+    int? nidAgeMin,
+    int? nidAgeMax,
+    String? nidBirthDateMin,
+    String? nidBirthDateMax,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final searchRepo = SearchRepository();
+      final maps = await searchRepo.complexSearch(
+        areaIds: areaIds,
+        streetId: streetId,
+        mobile: mobile,
+        birthMonths: birthMonths,
+        personCount: personCount,
+        socialStatusIds: socialStatusIds,
+        economicStatusIds: economicStatusIds,
+        stageIds: stageIds,
+        job: job,
+        ageMin: ageMin,
+        ageMax: ageMax,
+        name: name,
+        healthStatusIds: healthStatusIds,
+        fatherId: fatherId,
+        mostwaIds: mostwaIds,
+        karabaIds: karabaIds,
+        nidGov: nidGov,
+        nidGender: nidGender,
+        nidAgeMin: nidAgeMin,
+        nidAgeMax: nidAgeMax,
+        nidBirthDateMin: nidBirthDateMin,
+        nidBirthDateMax: nidBirthDateMax,
+      );
+      _families = maps.map((m) => Family.fromMap(m)).toList();
+    } catch (e) {
+      debugPrint('Error loading families with filters: $e');
+      _families = [];
+    }
     _isLoading = false;
     notifyListeners();
   }
@@ -80,5 +142,18 @@ class FamilyProvider with ChangeNotifier {
     }
     
     return '$years سنة و $months شهر';
+  }
+
+  Future<List<Person>> getPersonsByStage(int stageId) async {
+    return await _personRepo.getPersonsByStage(stageId);
+  }
+
+  Future<void> promotePersonsStage(List<int> personIds, int toStageId) async {
+    await _personRepo.promotePersonsStage(personIds, toStageId);
+    notifyListeners();
+  }
+
+  Future<List<Map<String, dynamic>>> getFamiliesWithLastVisit(List<int> areaIds) async {
+    return await _familyRepo.getFamiliesWithLastVisit(areaIds);
   }
 }

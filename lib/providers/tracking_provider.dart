@@ -33,6 +33,16 @@ class TrackingProvider with ChangeNotifier {
     await loadConfessions(personId);
   }
 
+  Future<void> updateConfession(Confession confession) async {
+    await _trackingRepo.updateConfession(confession);
+    await loadConfessions(confession.personId);
+  }
+
+  Future<void> deleteConfession(int id, int personId) async {
+    await _trackingRepo.deleteConfession(id);
+    await loadConfessions(personId);
+  }
+
   Future<void> loadVisits(int osraId) async {
     _isLoading = true;
     notifyListeners();
@@ -48,6 +58,36 @@ class TrackingProvider with ChangeNotifier {
       notes: notes,
     );
     await _trackingRepo.insertVisit(visit);
+    await loadVisits(osraId);
+  }
+
+  Future<void> addVisitWithDate(int osraId, String notes, DateTime date) async {
+    final visit = Visit(
+      osraId: osraId,
+      date: date.toIso8601String(),
+      notes: notes,
+    );
+    await _trackingRepo.insertVisit(visit);
+    await loadVisits(osraId);
+  }
+
+  Future<void> addBatchVisits({required List<int> osraIds, required String notes, required DateTime date}) async {
+    _isLoading = true;
+    notifyListeners();
+    for (final id in osraIds) {
+      final visit = Visit(
+        osraId: id,
+        date: date.toIso8601String(),
+        notes: notes,
+      );
+      await _trackingRepo.insertVisit(visit);
+    }
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> deleteVisit(int visitId, int osraId) async {
+    await _trackingRepo.deleteVisit(visitId);
     await loadVisits(osraId);
   }
 

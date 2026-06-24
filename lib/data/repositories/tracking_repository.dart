@@ -21,6 +21,21 @@ class TrackingRepository {
     return await db.insert('eatraf', confession.toMap());
   }
 
+  Future<int> updateConfession(Confession confession) async {
+    final db = await _dbHelper.database;
+    return await db.update(
+      'eatraf',
+      confession.toMap(),
+      where: 'eatraf_id = ?',
+      whereArgs: [confession.eatrafId],
+    );
+  }
+
+  Future<int> deleteConfession(int id) async {
+    final db = await _dbHelper.database;
+    return await db.delete('eatraf', where: 'eatraf_id = ?', whereArgs: [id]);
+  }
+
   // Visits (Visitor)
   Future<List<Visit>> getVisitsByFamily(int osraId) async {
     final db = await _dbHelper.database;
@@ -36,6 +51,11 @@ class TrackingRepository {
   Future<int> insertVisit(Visit visit) async {
     final db = await _dbHelper.database;
     return await db.insert('visits', visit.toMap());
+  }
+
+  Future<int> deleteVisit(int id) async {
+    final db = await _dbHelper.database;
+    return await db.delete('visits', where: 'visit_id = ?', whereArgs: [id]);
   }
 
   // Occasions (Monasba)

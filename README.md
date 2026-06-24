@@ -1,17 +1,103 @@
-# abona_flemoon
+<p align="center">
+  <img src="introduction_website/public/logo.png" alt="شعار برنامج العضوية الكنسية" width="150">
+</p>
 
-A new Flutter project.
+<h1 align="center">برنامج العضوية الكنسية | Church Membership</h1>
 
-## Getting Started
+<p align="center">
+  نظام متكامل واحترافي لإدارة العضوية الكنسية، رعاية الأسر والأفراد، متابعة الافتقاد وجلسات سر الاعتراف، وإدارة المساعدات المالية وإخوة الرب، بالإضافة إلى طباعة الكارنيهات الذكية بالباركود وتوليد التقارير الشاملة.
+</p>
 
-This project is a starting point for a Flutter application.
+<p align="center">
+  <img src="https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white" alt="Flutter">
+  <img src="https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white" alt="Dart">
+  <img src="https://img.shields.io/badge/SQLite-07405E?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite">
+  <img src="https://img.shields.io/badge/License-MIT-f59e0b?style=for-the-badge" alt="License">
+</p>
 
-A few resources to get you started if this is your first Flutter project:
+---
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## 🔗 روابط سريعة
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+* **الموقع التعريفي الرسمي (PWA):** [اضغط هنا لتصفح الموقع](https://UuWagdy.github.io/ChurchMermbership/)
+* **تنزيل نسخة الكمبيوتر (Windows):** [تحميل ChurchMembership-Windows.zip](https://github.com/UuWagdy/ChurchMermbership/releases/download/v1.0.0/ChurchMembership-Windows.zip)
+* **تنزيل نسخة الموبايل (Android):** [تحميل app-release.apk](https://github.com/UuWagdy/ChurchMermbership/releases/download/v1.0.0/app-release.apk)
+
+---
+
+## 📊 جدول مميزات النظام
+
+| المميزة | الوصف | الشاشة / التبويب |
+| :--- | :--- | :--- |
+| **إدارة الأسر والبيانات الشخصية** | تسجيل كامل لبيانات الأسر، العنوان، الهواتف، وتفاصيل الأفراد (القرابة، العمل، الصحة، الحالة الاجتماعية). | شاشة إدراج أسر |
+| **متابعة الافتقاد والرعاية** | تتبع مواعيد الافتقاد لكل أسرة، تنبيهات بالزيارات المتأخرة، وتكليف الخدام بالافتقاد ميدانياً. | شاشة الافتقاد |
+| **سر الاعتراف المقدس** | تسجيل ومتابعة جلسات الاعتراف للأعضاء مع الآباء الكهنة بشكل آمن وسري تماماً. | شاشة الاعتراف |
+| **الحسابات والمساعدات المالية** | إدارة مساعدات إخوة الرب (الدورية والاستثنائية)، وحساب المصروفات وتصنيفها في بنود صرف. | شاشة المساعدات والمصروفات |
+| **طباعة الكارنيهات بالباركود** | توليد كارنيهات هوية كنسية ذكية تحتوي على رمز باركود فريد لكل عضو لتسجيل الحضور. | شاشة طباعة كارنيه |
+| **التقارير المتطورة وتصدير PDF** | البحث المتقدم بمرونة تامة وتصدير تقارير PDF منسقة وجاهزة للطباعة (أعياد الميلاد، الحالات المالية، إلخ). | شاشة البحث والتقرير |
+
+---
+
+## 🔑 بيانات الدخول الافتراضية للمسؤول
+
+بعد تثبيت البرنامج، يمكنك تسجيل الدخول إلى لوحة التحكم الكاملة باستخدام البيانات الافتراضية التالية:
+
+* **اسم المستخدم:** `admin`
+* **كلمة السر:** `1234`
+
+> [!IMPORTANT]
+> يرجى الحفاظ على سرية كلمة المرور الافتراضية أو تغييرها وتعديل الصلاحيات من خلال شاشة "صلاحيات المستخدمين" المدمجة بالنظام لضمان أمن البيانات الكنسية.
+
+---
+
+## ⚙️ متطلبات التثبيت والتشغيل
+
+### نسـخة الكمبيوتر (Windows)
+1. قم بتحميل الملف المضغوط [Windows ZIP](https://github.com/UuWagdy/ChurchMermbership/releases/download/v1.0.0/ChurchMembership-Windows.zip).
+2. فك الضغط عن الملف في أي مجلد على جهازك.
+3. قم بتشغيل الملف التنفيذي `abona_flemoon.exe` مباشرة (لا يتطلب تثبيت معقد).
+4. *المتطلبات:* نظام Windows 10 أو Windows 11 (64-bit).
+
+### نسـخة الموبايل (Android)
+1. قم بتحميل ملف الـ [APK](https://github.com/UuWagdy/ChurchMermbership/releases/download/v1.0.0/app-release.apk) مباشرة على هاتفك.
+2. افتح الملف وقم بالسماح بالتثبيت من مصادر غير معروفة إذا طلب الهاتف ذلك.
+3. ابدأ في استخدام التطبيق والافتقاد الميداني.
+4. *المتطلبات:* نظام أندرويد إصدار 5.0 (Lollipop) أو أحدث.
+
+---
+
+## 📁 هيكل مجلدات المشروع
+
+```text
+ChurchMermbership/
+├── .github/
+│   └── workflows/
+│       └── deploy-website.yml      # أتمتة نشر الموقع على GitHub Pages
+├── android/                        # إعدادات منصة الأندرويد
+├── assets/
+│   ├── database/
+│   │   └── eakhow_elrab.db        # قاعدة بيانات SQLite (نسخة فارغة للبناء)
+│   ├── fonts/                     # خطوط Cairo المدمجة بالتطبيق
+│   └── images/                    # صور ولوجو التطبيق
+├── introduction_website/           # الموقع التعريفي PWA
+│   ├── index.html                  # كود الموقع بالكامل (HTML, CSS, JS)
+│   ├── manifest.json               # ملف إعدادات PWA للتعريف بالأيقونات
+│   ├── sw.js                       # Service Worker لإتاحة العمل بدون إنترنت
+│   └── public/                     # أصول الموقع (اللوجو، الأيقونات والـ Favicon)
+├── lib/                            # كود لغة Dart وتصميم Flutter للمشروع
+│   ├── data/                       # الموديلات، قواعد البيانات، والمستودعات
+│   ├── providers/                  # مزودي إدارة الحالة (State Management)
+│   ├── ui/                         # الواجهات والشاشات والتبويبات المخصصة
+│   └── main.dart                   # نقطة انطلاق التطبيق
+├── windows/                        # إعدادات منصة الويندوز
+├── generate_icons.py               # سكربت توليد أيقونات الـ PWA بمقاساتها
+└── pubspec.yaml                    # ملف تكوين وحزم المشروع في Flutter
+```
+
+---
+
+## 👥 فريق التطوير والعمل
+
+* **م. جورج منير:** مطور النسخة الأصلية للبرنامج بلغة C# وواضع الأساس الفني وقاعدة البيانات للمشروع.
+* **د. يوساب وجدي:** مطور النسخة الحالية وإعادة هيكلتها وبرمجتها بالكامل باستخدام Flutter وتصميم الواجهات العصرية وتوافقها مع الأندرويد والويندوز.
+  * *للتواصل والدعم الفني:* `01036976446`
