@@ -20,8 +20,9 @@
 ## 🔗 روابط سريعة
 
 * **الموقع التعريفي الرسمي (PWA):** [اضغط هنا لتصفح الموقع](https://UuWagdy.github.io/ChurchMermbership/)
-* **تنزيل نسخة الكمبيوتر (Windows):** [تحميل ChurchMembership-Windows.zip](https://github.com/UuWagdy/ChurchMermbership/releases/download/v1.0.0/ChurchMembership-Windows.zip)
-* **تنزيل نسخة الموبايل (Android):** [تحميل app-release.apk](https://github.com/UuWagdy/ChurchMermbership/releases/download/v1.0.0/app-release.apk)
+* **تنزيل نسخة الكمبيوتر (Windows):** [تحميل Church_Membership.rar (عبر Mediafire)](https://www.mediafire.com/file/ekds566hi1f3nwo/Church_Membership.rar/file)
+* **تنزيل نسخة الموبايل (Android):** [تحميل Church_Membership.apk (عبر Mediafire)](https://www.mediafire.com/file/plwgp1hj0fwtjax/Church_Membership.apk/file)
+* **تنزيل متطلبات تشغيل الويندوز (إجباري أولاً):** [تحميل حزمة المتطلبات (عبر Mediafire)](https://www.mediafire.com/file/ggfvkdy8vc9et2b/%25D9%258A%25D8%25AC%25D8%25A8_%25D8%25A7%25D9%2584%25D8%25AA%25D9%2586%25D8%25B2%25D9%258A%25D9%2584_%25D9%2582%25D8%25A8%25D9%2584_%25D8%25AA%25D8%25B4%25D8%25BA%25D9%258A%25D9%2584_%25D8%25A7%25D9%2584%25D8%25A8%25D8%25B1%25D9%2586%25D8%25A7%25D9%2585%25D8%25AC.rar/file)
 
 ---
 
@@ -53,13 +54,16 @@
 ## ⚙️ متطلبات التثبيت والتشغيل
 
 ### نسـخة الكمبيوتر (Windows)
-1. قم بتحميل الملف المضغوط [Windows ZIP](https://github.com/UuWagdy/ChurchMermbership/releases/download/v1.0.0/ChurchMembership-Windows.zip).
-2. فك الضغط عن الملف في أي مجلد على جهازك.
-3. قم بتشغيل الملف التنفيذي `abona_flemoon.exe` مباشرة (لا يتطلب تثبيت معقد).
-4. *المتطلبات:* نظام Windows 10 أو Windows 11 (64-bit).
+> [!WARNING]
+> **خطوة إجبارية هامة جداً:** يجب تحميل وتثبيت ملف المتطلبات أولاً قبل تشغيل البرنامج لضمان تهيئة قاعدة البيانات والاتصال بنجاح.
+1. قم بتحميل وتثبيت [حزمة متطلبات تشغيل البرنامج](https://www.mediafire.com/file/ggfvkdy8vc9et2b/%25D9%258A%25D8%25AC%25D8%25A8_%25D8%25A7%25D9%2584%25D8%25AA%25D9%2586%25D8%25B2%25D9%258A%25D9%2584_%25D9%2582%25D8%25A8%25D9%2584_%25D8%25AA%25D8%25B4%25D8%25BA%25D9%258A%25D9%2584_%25D8%25A7%25D9%2584%25D8%25A8%25D8%25B1%25D9%2586%25D8%25A7%25D9%2585%25D8%25AC.rar/file).
+2. قم بتحميل نسخة البرنامج [Windows RAR](https://www.mediafire.com/file/ekds566hi1f3nwo/Church_Membership.rar/file).
+3. فك الضغط عن ملف البرنامج في أي مجلد على جهازك.
+4. قم بتشغيل الملف التنفيذي `abona_flemoon.exe` مباشرة.
+5. *المتطلبات:* نظام Windows 10 أو Windows 11 (64-bit).
 
 ### نسـخة الموبايل (Android)
-1. قم بتحميل ملف الـ [APK](https://github.com/UuWagdy/ChurchMermbership/releases/download/v1.0.0/app-release.apk) مباشرة على هاتفك.
+1. قم بتحميل ملف الـ [APK](https://www.mediafire.com/file/plwgp1hj0fwtjax/Church_Membership.apk/file) مباشرة على هاتفك.
 2. افتح الملف وقم بالسماح بالتثبيت من مصادر غير معروفة إذا طلب الهاتف ذلك.
 3. ابدأ في استخدام التطبيق والافتقاد الميداني.
 4. *المتطلبات:* نظام أندرويد إصدار 5.0 (Lollipop) أو أحدث.
