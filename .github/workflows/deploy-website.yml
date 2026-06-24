@@ -4,8 +4,7 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'introduction_website/**'
+  workflow_dispatch: # يتيح لك تشغيل الـ Workflow يدوياً من صفحة Actions في جيتهاب
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
