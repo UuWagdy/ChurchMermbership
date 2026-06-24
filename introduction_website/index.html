@@ -1124,59 +1124,104 @@
       color: var(--text-muted);
     }
 
-    /* PWA Install Banner */
-    .pwa-banner {
+    /* PWA Floating Install Button Styles */
+    .pwa-floating-btn {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
-      left: 24px;
-      max-width: 400px;
+      bottom: 32px;
+      left: 32px;
       z-index: 9999;
-      padding: 20px;
       display: none; /* Managed by JS */
       align-items: center;
-      gap: 16px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), var(--border-hover);
-      animation: slideUp 0.5s ease-out;
+      justify-content: center;
+      animation: bounce-pulse 2.5s infinite ease-in-out;
     }
 
-    @keyframes slideUp {
-      from { transform: translateY(50px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-
-    .pwa-banner-logo {
-      width: 48px;
-      height: 48px;
-      border-radius: 10px;
-      object-fit: contain;
-    }
-
-    .pwa-banner-text {
-      flex: 1;
-    }
-
-    .pwa-banner-text h5 {
-      font-size: 14.5px;
-      font-weight: 700;
-      margin-bottom: 2px;
-    }
-
-    .pwa-banner-text p {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    .pwa-banner-actions {
+    .pwa-install-trigger {
+      position: relative;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: var(--bg-main);
+      border: 2px solid var(--primary);
+      box-shadow: 0 8px 32px rgba(37, 99, 235, 0.4), var(--glow-blue);
+      cursor: pointer;
       display: flex;
-      flex-direction: column;
-      gap: 6px;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+      padding: 0;
     }
 
-    .pwa-banner-actions .btn {
-      padding: 8px 16px;
-      font-size: 12px;
-      border-radius: 8px;
+    .pwa-install-trigger:hover {
+      transform: scale(1.1);
+      border-color: var(--accent);
+      box-shadow: 0 8px 32px rgba(245, 158, 11, 0.4), var(--glow-gold);
+    }
+
+    .pwa-fab-logo {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      padding: 6px;
+    }
+
+    .pwa-fab-badge {
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      background: var(--primary);
+      color: white;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      border: 2px solid var(--bg-main);
+      transition: var(--transition);
+    }
+
+    .pwa-install-trigger:hover .pwa-fab-badge {
+      background: var(--accent);
+      color: #070a13;
+    }
+
+    /* Close Square Button */
+    .pwa-close-btn {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 20px;
+      height: 20px;
+      background: #ef4444;
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: bold;
+      z-index: 10000;
+      transition: var(--transition);
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    }
+
+    .pwa-close-btn:hover {
+      background: #dc2626;
+      transform: scale(1.1);
+    }
+
+    @keyframes bounce-pulse {
+      0%, 100% {
+        transform: translateY(0) scale(1);
+      }
+      50% {
+        transform: translateY(-6px) scale(1.02);
+      }
     }
 
     /* Notification (Toast) */
@@ -1311,11 +1356,46 @@
 
     @media (max-width: 480px) {
       .hero-content h1 {
-        font-size: 30px;
+        font-size: 24px;
+      }
+
+      .hero-content p {
+        font-size: 14.5px;
+        margin-bottom: 24px;
+      }
+
+      .logo-text {
+        font-size: 17px;
+      }
+
+      .btn {
+        padding: 10px 18px;
+        font-size: 13.5px;
+      }
+
+      .mock-window {
+        height: 340px;
       }
 
       .section-title {
-        font-size: 28px;
+        font-size: 22px;
+      }
+
+      .feature-card {
+        padding: 24px;
+      }
+
+      .feature-card h3 {
+        font-size: 18px;
+      }
+
+      .explorer-tab-btn {
+        padding: 10px 14px;
+        font-size: 13.5px;
+      }
+
+      .panel-header h3 {
+        font-size: 19px;
       }
 
       .explorer-content {
@@ -1324,12 +1404,12 @@
 
       .accordion-trigger {
         padding: 16px;
-        font-size: 14.5px;
+        font-size: 14px;
       }
 
       .accordion-body {
         padding: 0 16px 16px 16px;
-        font-size: 13.5px;
+        font-size: 13px;
       }
 
       .credentials-card {
@@ -1342,6 +1422,20 @@
 
       .cred-val {
         font-size: 14px;
+      }
+
+      .container {
+        padding: 0 16px;
+      }
+      
+      .pwa-floating-btn {
+        bottom: 20px;
+        left: 20px;
+      }
+      
+      .pwa-install-trigger {
+        width: 54px;
+        height: 54px;
       }
     }
   </style>
@@ -1875,17 +1969,13 @@
     </div>
   </footer>
 
-  <!-- PWA Install Banner -->
-  <div class="pwa-banner glass" id="pwa-banner">
-    <img src="./public/logo.png" alt="شعار التطبيق" class="pwa-banner-logo">
-    <div class="pwa-banner-text">
-      <h5>تثبيت تطبيق العضوية الكنسية</h5>
-      <p>يمكنك تثبيت هذا الموقع كتطبيق PWA خفيف ومستقل والوصول إليه سريعاً من شاشتك الرئيسية.</p>
-    </div>
-    <div class="pwa-banner-actions">
-      <button class="btn btn-primary" id="btn-install-pwa">تثبيت التطبيق</button>
-      <button class="btn btn-secondary" id="btn-close-pwa">لاحقاً</button>
-    </div>
+  <!-- PWA Floating Install Button -->
+  <div class="pwa-floating-btn" id="pwa-banner">
+    <button class="pwa-close-btn" id="btn-close-pwa" title="إغلاق التنبيه" aria-label="إغلاق">&times;</button>
+    <button class="pwa-install-trigger" id="btn-install-pwa" title="تثبيت تطبيق العضوية الكنسية على جهازك" aria-label="تثبيت التطبيق">
+      <img src="./public/logo.png" alt="تثبيت التطبيق" class="pwa-fab-logo">
+      <div class="pwa-fab-badge"><i class="fa-solid fa-plus"></i></div>
+    </button>
   </div>
 
   <!-- Notification Toast -->
