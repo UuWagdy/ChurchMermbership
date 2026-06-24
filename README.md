@@ -59,7 +59,7 @@
 1. قم بتحميل وتثبيت [حزمة متطلبات تشغيل البرنامج](https://www.mediafire.com/file/ggfvkdy8vc9et2b/%25D9%258A%25D8%25AC%25D8%25A8_%25D8%25A7%25D9%2584%25D8%25AA%25D9%2586%25D8%25B2%25D9%258A%25D9%2584_%25D9%2582%25D8%25A8%25D9%2584_%25D8%25AA%25D8%25B4%25D8%25BA%25D9%258A%25D9%2584_%25D8%25A7%25D9%2584%25D8%25A8%25D8%25B1%25D9%2586%25D8%25A7%25D9%2585%25D8%25AC.rar/file).
 2. قم بتحميل نسخة البرنامج [Windows RAR](https://www.mediafire.com/file/ekds566hi1f3nwo/Church_Membership.rar/file).
 3. فك الضغط عن ملف البرنامج في أي مجلد على جهازك.
-4. قم بتشغيل الملف التنفيذي `abona_flemoon.exe` مباشرة.
+4. قم بتشغيل الملف التنفيذي `Church_Membership.exe` مباشرة.
 5. *المتطلبات:* نظام Windows 10 أو Windows 11 (64-bit).
 
 ### نسـخة الموبايل (Android)
