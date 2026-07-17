@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import '../../../providers/financial_provider.dart';
 import '../../../providers/family_provider.dart';
 import '../../../data/models/tracking_models.dart';
+import '../../../data/models/family_models.dart';
 import '../../../data/services/pdf_service.dart';
+
 
 class ExpenseScreen extends StatefulWidget {
   const ExpenseScreen({super.key});
@@ -18,6 +20,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   final _notesController = TextEditingController();
   final _masrofController = TextEditingController();
   final _ayneeController = TextEditingController();
+  final _familySearchController = TextEditingController();
+  final _familyFocusNode = FocusNode();
+  final _autocompleteKey = GlobalKey();
 
   @override
   void initState() {
@@ -25,6 +30,17 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<FamilyProvider>(context, listen: false).loadFamilies();
     });
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _notesController.dispose();
+    _masrofController.dispose();
+    _ayneeController.dispose();
+    _familySearchController.dispose();
+    _familyFocusNode.dispose();
+    super.dispose();
   }
 
   void _addExpense() async {
@@ -101,96 +117,196 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                       ],
                     ),
                     const Divider(height: 24),
-                    // Row 1: الأسرة + بند المصروف + المبلغ
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: DropdownButtonFormField<int>(
-                            isExpanded: true,
-                            value: _selectedOsraId,
-                            decoration: const InputDecoration(
-                              labelText: 'اختر الأسرة',
-                              prefixIcon: Icon(Icons.people, size: 18),
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                            ),
-                            style: const TextStyle(fontSize: 12, color: Colors.black),
-                            items: familyProvider.families.map((f) => DropdownMenuItem(value: f.osraId, child: Text(f.osraName, style: const TextStyle(fontSize: 12, color: Colors.black)))).toList(),
-                            onChanged: (val) {
-                              setState(() => _selectedOsraId = val);
-                              if (val != null) financialProvider.loadFinancials(val);
-                            },
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isDesktop = constraints.maxWidth > 650;
+
+                        final familyAutocomplete = RawAutocomplete<Family>(
+                          key: _autocompleteKey,
+                          textEditingController: _familySearchController,
+                          focusNode: _familyFocusNode,
+                          optionsBuilder: (TextEditingValue textEditingValue) {
+                            final families = familyProvider.families;
+                            if (textEditingValue.text.isEmpty) {
+                              return families;
+                            }
+                            return families.where((Family option) {
+                              return option.osraName.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                            });
+                          },
+                          displayStringForOption: (Family option) => option.osraName,
+                          fieldViewBuilder: (BuildContext context, TextEditingController fieldController, FocusNode fieldFocusNode, VoidCallback onFieldSubmitted) {
+                            return TextFormField(
+                              controller: fieldController,
+                              focusNode: fieldFocusNode,
+                              style: const TextStyle(fontSize: 12, color: Colors.black),
+                              decoration: InputDecoration(
+                                labelText: 'اختر الأسرة',
+                                prefixIcon: const Icon(Icons.people, size: 18),
+                                suffixIcon: _selectedOsraId != null
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear, size: 18, color: Colors.grey),
+                                        onPressed: () {
+                                          setState(() {
+                                            _selectedOsraId = null;
+                                            _familySearchController.clear();
+                                          });
+                                        },
+                                      )
+                                    : const Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey),
+                                border: const OutlineInputBorder(),
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              ),
+                            );
+                          },
+                          optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<Family> onSelected, Iterable<Family> options) {
+                            final screenWidth = MediaQuery.of(context).size.width;
+                            final optionsWidth = isDesktop ? 350.0 : screenWidth - 64.0;
+                            return Align(
+                              alignment: Alignment.topRight,
+                              child: Material(
+                                elevation: 4.0,
+                                borderRadius: BorderRadius.circular(8),
+                                clipBehavior: Clip.antiAlias,
+                                child: Container(
+                                  width: optionsWidth,
+                                  constraints: const BoxConstraints(maxHeight: 200),
+                                  color: Colors.white,
+                                  child: ListView.builder(
+                                    padding: EdgeInsets.zero,
+                                    shrinkWrap: true,
+                                    itemCount: options.length,
+                                    itemBuilder: (BuildContext context, int index) {
+                                      final Family option = options.elementAt(index);
+                                      return InkWell(
+                                        onTap: () => onSelected(option),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                                          decoration: BoxDecoration(
+                                            border: index < options.length - 1
+                                                ? Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5))
+                                                : null,
+                                          ),
+                                          child: Text(
+                                            option.osraName,
+                                            style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: Colors.black),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                          onSelected: (Family selection) {
+                            setState(() {
+                              _selectedOsraId = selection.osraId;
+                            });
+                            if (selection.osraId != null) {
+                              financialProvider.loadFinancials(selection.osraId!);
+                            }
+                          },
+                        );
+
+                        final masrofField = TextField(
+                          controller: _masrofController,
+                          style: const TextStyle(fontSize: 12),
+                          decoration: const InputDecoration(
+                            labelText: 'بند المصروف',
+                            prefixIcon: Icon(Icons.category, size: 18),
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 3,
-                          child: TextField(
-                            controller: _masrofController,
-                            style: const TextStyle(fontSize: 12),
-                            decoration: const InputDecoration(
-                              labelText: 'بند المصروف',
-                              prefixIcon: Icon(Icons.category, size: 18),
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                            ),
+                        );
+
+                        final amountField = TextField(
+                          controller: _amountController,
+                          style: const TextStyle(fontSize: 12),
+                          decoration: const InputDecoration(
+                            labelText: 'المبلغ',
+                            prefixIcon: Icon(Icons.attach_money, size: 16),
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 2,
-                          child: TextField(
-                            controller: _amountController,
-                            style: const TextStyle(fontSize: 12),
-                            decoration: const InputDecoration(
-                              labelText: 'المبلغ',
-                              prefixIcon: Icon(Icons.attach_money, size: 16),
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                            ),
-                            keyboardType: TextInputType.number,
+                          keyboardType: TextInputType.number,
+                        );
+
+                        final ayneeField = TextField(
+                          controller: _ayneeController,
+                          style: const TextStyle(fontSize: 12),
+                          decoration: const InputDecoration(
+                            labelText: 'عيني',
+                            prefixIcon: Icon(Icons.inventory_2, size: 18),
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    // Row 2: عيني + ملاحظات
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: TextField(
-                            controller: _ayneeController,
-                            style: const TextStyle(fontSize: 12),
-                            decoration: const InputDecoration(
-                              labelText: 'عيني',
-                              prefixIcon: Icon(Icons.inventory_2, size: 18),
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                            ),
+                        );
+
+                        final notesField = TextField(
+                          controller: _notesController,
+                          style: const TextStyle(fontSize: 12),
+                          decoration: const InputDecoration(
+                            labelText: 'ملاحظات إضافية',
+                            prefixIcon: Icon(Icons.note, size: 18),
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 4,
-                          child: TextField(
-                            controller: _notesController,
-                            style: const TextStyle(fontSize: 12),
-                            decoration: const InputDecoration(
-                              labelText: 'ملاحظات إضافية',
-                              prefixIcon: Icon(Icons.note, size: 18),
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                            ),
-                          ),
-                        ),
-                      ],
+                        );
+
+                        if (isDesktop) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(flex: 3, child: familyAutocomplete),
+                                  const SizedBox(width: 8),
+                                  Expanded(flex: 3, child: masrofField),
+                                  const SizedBox(width: 8),
+                                  Expanded(flex: 2, child: amountField),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(flex: 2, child: ayneeField),
+                                  const SizedBox(width: 8),
+                                  Expanded(flex: 4, child: notesField),
+                                ],
+                              ),
+                            ],
+                          );
+                        } else {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              familyAutocomplete,
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(flex: 3, child: masrofField),
+                                  const SizedBox(width: 8),
+                                  Expanded(flex: 2, child: amountField),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(flex: 2, child: ayneeField),
+                                  const SizedBox(width: 8),
+                                  Expanded(flex: 3, child: notesField),
+                                ],
+                              ),
+                            ],
+                          );
+                        }
+                      },
                     ),
                     const SizedBox(height: 24),
                     Wrap(

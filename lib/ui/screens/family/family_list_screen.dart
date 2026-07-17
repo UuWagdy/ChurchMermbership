@@ -195,6 +195,7 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
                     controller: _searchController,
                     onChanged: (val) {
                       setState(() {});
+                      _onSearch();
                     },
                     decoration: InputDecoration(
                       labelText: 'بحث باسم الأسرة',

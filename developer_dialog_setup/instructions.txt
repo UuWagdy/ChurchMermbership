@@ -1,0 +1,238 @@
+# دليل إعداد بطاقات المطورين في مشاريع فلاتر (Developer Dialog Setup Guide)
+
+يحتوي هذا المجلد على شعارات C# و Flutter بالإضافة إلى التعليمات والبرومبت (Prompt) اللازمين لإعادة تطبيق هذا التصميم الجميل والحديث في أي مشروع آخر.
+
+---
+
+## 1. الـ برومبت (Prompt) للذكاء الاصطناعي لتنفيذ نفس التصميم:
+يمكنك نسخ هذا النص بالكامل وإرساله للذكاء الاصطناعي (مثل Antigravity أو أي مساعد آخر) في مشاريعك الأخرى لتعديل شاشة "حول التطبيق":
+
+```text
+أريد تحسين تصميم شاشة "حول التطبيق" (About Dialog) وبطاقات المطورين لتصبح بتصميم عصري (Premium).
+المتطلبات:
+1. قم بإضافة شعار C# الرسمي وشعار Flutter الرسمي كأصول (assets) في ملف pubspec.yaml.
+2. أضف مكتبة url_launcher إلى dependencies في pubspec.yaml.
+3. استبدل الأيقونات الافتراضية (مثل Icons.computer أو Icons.flutter_dash) في بطاقات المطورين بصور الشعارات الرسمية (Image.asset).
+4. اجعل تصميم بطاقة المطور مميزاً وعصرياً:
+   - خلفية بيضاء نقية (Colors.white).
+   - إطار دائري للشعار مع حدود ناعمة (Border) وظلال ملونة خفيفة (BoxShadow) تناسب هوية كل تقنية (اللون البنفسجي لـ C#، والأزرق لـ Flutter).
+   - تحسين تناسق الخطوط والمسافات (Padding).
+5. أضف إمكانية عرض رقم الهاتف/الموبايل (phone) بشكل اختياري أسفل الوظيفة/الاسم:
+   - يظهر كـ Link بلون التقنية المميز وتحته خط (TextDecoration.underline)، وعند النقر عليه يتم الاتصال بالرقم مباشرة باستخدام url_launcher.
+   - أضف بجانبه زر نسخ (Icon لـ content_copy_outlined) لنسخ الرقم إلى الحافظة (Clipboard) مع إظهار Snackbar عائم يوضح "تم نسخ الرقم بنجاح".
+```
+
+---
+
+## 2. كود فلاتر المحدث (Flutter Code Snippets):
+
+### أولاً: كود بطاقة المطور (`_buildDevCard`):
+قم بإضافة هذا التابع داخل الـ State الخاص بالشاشة:
+
+```dart
+  Widget _buildDevCard(
+    BuildContext context, {
+    required String name,
+    required String role,
+    required String assetPath,
+    required Color color,
+    String? phone,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+        border: Border.all(color: color.withOpacity(0.15), width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: color.withOpacity(0.2), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ClipOval(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Image.asset(
+                  assetPath,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14.5,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  role,
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (phone != null) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      InkWell(
+                        onTap: () async {
+                          final Uri launchUri = Uri(
+                            scheme: 'tel',
+                            path: phone,
+                          );
+                          try {
+                            await launchUrl(
+                              launchUri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } catch (_) {}
+                        },
+                        borderRadius: BorderRadius.circular(4),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.phone_outlined, size: 12, color: color),
+                              const SizedBox(width: 4),
+                              Text(
+                                phone,
+                                style: TextStyle(
+                                  color: color,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Tooltip(
+                        message: 'نسخ الرقم',
+                        child: InkWell(
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(text: phone));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'تم نسخ الرقم بنجاح',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                duration: Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.content_copy_outlined,
+                              size: 13,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+```
+
+### ثانياً: كيفية الاستخدام داخل الـ Dialog:
+```dart
+                  _buildDevCard(
+                    context,
+                    name: 'م. جورج منير',
+                    role: 'برمجة النسخة الأصلية (C#)',
+                    assetPath: 'assets/csharp_logo.png',
+                    color: const Color(0xFF512BD4),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildDevCard(
+                    context,
+                    name: 'د. يوساب وجدي',
+                    role: 'تصميم وتطوير التطبيق الحالي (Flutter)\nلطلب التعديلات والتحديثات',
+                    assetPath: 'assets/flutter_logo.png',
+                    color: const Color(0xFF02569B),
+                    phone: '01036976446',
+                  ),
+```
+
+---
+
+## 3. كيفية تحميل الشعارات أوتوماتيكياً (Python Script):
+إذا أردت تحميل الشعارات مباشرة من الإنترنت في مشروع جديد، يمكنك استخدام هذا السكربت البسيط:
+
+```python
+import urllib.request
+import os
+
+os.makedirs('assets', exist_ok=True)
+
+csharp_url = "https://upload.wikimedia.org/wikipedia/commons/4/4f/Csharp_Logo.png"
+flutter_url = "https://upload.wikimedia.org/wikipedia/commons/1/17/Google-flutter-logo.png"
+
+headers = {'User-Agent': 'Mozilla/5.0'}
+
+def download_file(url, dest):
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req) as response:
+        with open(dest, 'wb') as f:
+            f.write(response.read())
+
+download_file(csharp_url, 'assets/csharp_logo.png')
+download_file(flutter_url, 'assets/flutter_logo.png')
+print("تم تحميل الشعارات بنجاح!")
+```
+
+---
+*تم إنشاء هذا الدليل بواسطة Antigravity*

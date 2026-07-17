@@ -4,6 +4,7 @@ import '../../../providers/tracking_provider.dart';
 import '../../../providers/family_provider.dart';
 import '../../../data/services/pdf_service.dart';
 import '../../../data/models/tracking_models.dart';
+import '../../../data/models/family_models.dart';
 
 class OccasionsScreen extends StatefulWidget {
   const OccasionsScreen({super.key});
@@ -16,6 +17,9 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
   int? _selectedOsraId;
   final _nameController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
+  final _familySearchController = TextEditingController();
+  final _familyFocusNode = FocusNode();
+  final _autocompleteKey = GlobalKey();
 
   @override
   void initState() {
@@ -23,6 +27,14 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<FamilyProvider>(context, listen: false).loadFamilies();
     });
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _familySearchController.dispose();
+    _familyFocusNode.dispose();
+    super.dispose();
   }
 
   void _addOccasion() async {
@@ -102,21 +114,92 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
                     LayoutBuilder(
                       builder: (context, constraints) {
                         final isDesktop = constraints.maxWidth > 550;
-                        final dropdown = DropdownButtonFormField<int>(
-                          isExpanded: true,
-                          value: _selectedOsraId,
-                          decoration: const InputDecoration(
-                            labelText: 'اختر الأسرة',
-                            prefixIcon: Icon(Icons.people, size: 18),
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                          ),
-                          style: const TextStyle(fontSize: 12, color: Colors.black),
-                          items: familyProvider.families.map((f) => DropdownMenuItem(value: f.osraId, child: Text(f.osraName, style: const TextStyle(fontSize: 12)))).toList(),
-                          onChanged: (val) {
-                            setState(() => _selectedOsraId = val);
-                            if (val != null) trackingProvider.loadOccasions(val);
+                        final familyAutocomplete = RawAutocomplete<Family>(
+                          key: _autocompleteKey,
+                          textEditingController: _familySearchController,
+                          focusNode: _familyFocusNode,
+                          optionsBuilder: (TextEditingValue textEditingValue) {
+                            final families = familyProvider.families;
+                            if (textEditingValue.text.isEmpty) {
+                              return families;
+                            }
+                            return families.where((Family option) {
+                              return option.osraName.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                            });
+                          },
+                          displayStringForOption: (Family option) => option.osraName,
+                          fieldViewBuilder: (BuildContext context, TextEditingController fieldController, FocusNode fieldFocusNode, VoidCallback onFieldSubmitted) {
+                            return TextFormField(
+                              controller: fieldController,
+                              focusNode: fieldFocusNode,
+                              style: const TextStyle(fontSize: 12, color: Colors.black),
+                              decoration: InputDecoration(
+                                labelText: 'اختر الأسرة',
+                                prefixIcon: const Icon(Icons.people, size: 18),
+                                suffixIcon: _selectedOsraId != null
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear, size: 18, color: Colors.grey),
+                                        onPressed: () {
+                                          setState(() {
+                                            _selectedOsraId = null;
+                                            _familySearchController.clear();
+                                          });
+                                        },
+                                      )
+                                    : const Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey),
+                                border: const OutlineInputBorder(),
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              ),
+                            );
+                          },
+                          optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<Family> onSelected, Iterable<Family> options) {
+                            final screenWidth = MediaQuery.of(context).size.width;
+                            final optionsWidth = isDesktop ? 350.0 : screenWidth - 64.0;
+                            return Align(
+                              alignment: Alignment.topRight,
+                              child: Material(
+                                elevation: 4.0,
+                                borderRadius: BorderRadius.circular(8),
+                                clipBehavior: Clip.antiAlias,
+                                child: Container(
+                                  width: optionsWidth,
+                                  constraints: const BoxConstraints(maxHeight: 200),
+                                  color: Colors.white,
+                                  child: ListView.builder(
+                                    padding: EdgeInsets.zero,
+                                    shrinkWrap: true,
+                                    itemCount: options.length,
+                                    itemBuilder: (BuildContext context, int index) {
+                                      final Family option = options.elementAt(index);
+                                      return InkWell(
+                                        onTap: () => onSelected(option),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                                          decoration: BoxDecoration(
+                                            border: index < options.length - 1
+                                                ? Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5))
+                                                : null,
+                                          ),
+                                          child: Text(
+                                            option.osraName,
+                                            style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: Colors.black),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                          onSelected: (Family selection) {
+                            setState(() {
+                              _selectedOsraId = selection.osraId;
+                            });
+                            if (selection.osraId != null) {
+                              trackingProvider.loadOccasions(selection.osraId!);
+                            }
                           },
                         );
 
@@ -153,7 +236,7 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
                         if (isDesktop) {
                           return Row(
                             children: [
-                              Expanded(flex: 3, child: dropdown),
+                              Expanded(flex: 3, child: familyAutocomplete),
                               const SizedBox(width: 8),
                               Expanded(flex: 3, child: nameField),
                               const SizedBox(width: 8),
@@ -164,15 +247,11 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              dropdown,
+                              familyAutocomplete,
                               const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(child: nameField),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: dateField),
-                                ],
-                              ),
+                              nameField,
+                              const SizedBox(height: 12),
+                              dateField,
                             ],
                           );
                         }

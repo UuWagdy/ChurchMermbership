@@ -4,6 +4,7 @@ import '../../../providers/financial_provider.dart';
 import '../../../providers/family_provider.dart';
 import '../../../providers/lookup_provider.dart';
 import '../../../data/models/tracking_models.dart';
+import '../../../data/models/family_models.dart';
 import '../../../data/services/pdf_service.dart';
 
 class AidScreen extends StatefulWidget {
@@ -19,6 +20,9 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
   final _ayneeController = TextEditingController();
+  final _familySearchController = TextEditingController();
+  final _familyFocusNode = FocusNode();
+  final _autocompleteKey = GlobalKey();
   int? _selectedService;
   String? _selectedVariableType;
 
@@ -30,6 +34,17 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
       Provider.of<FamilyProvider>(context, listen: false).loadFamilies();
       Provider.of<LookupProvider>(context, listen: false).loadAllLookups();
     });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _amountController.dispose();
+    _notesController.dispose();
+    _ayneeController.dispose();
+    _familySearchController.dispose();
+    _familyFocusNode.dispose();
+    super.dispose();
   }
 
   void _addFixedAid() async {
@@ -146,20 +161,93 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
             ),
             child: Column(
               children: [
-                DropdownButtonFormField<int>(
-                  value: _selectedOsraId,
-                  decoration: InputDecoration(
-                    labelText: 'اختر الأسرة للمتابعة',
-                    prefixIcon: const Icon(Icons.family_restroom, color: Colors.indigo),
-                    border: const OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                  items: familyProvider.families.map((f) => DropdownMenuItem(value: f.osraId, child: Text(f.osraName))).toList(),
-                  onChanged: (val) {
-                    setState(() => _selectedOsraId = val);
-                    if (val != null) financialProvider.loadFinancials(val);
+                RawAutocomplete<Family>(
+                  key: _autocompleteKey,
+                  textEditingController: _familySearchController,
+                  focusNode: _familyFocusNode,
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    final families = familyProvider.families;
+                    if (textEditingValue.text.isEmpty) {
+                      return families;
+                    }
+                    return families.where((Family option) {
+                      return option.osraName.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                    });
+                  },
+                  displayStringForOption: (Family option) => option.osraName,
+                  fieldViewBuilder: (BuildContext context, TextEditingController fieldController, FocusNode fieldFocusNode, VoidCallback onFieldSubmitted) {
+                    return TextFormField(
+                      controller: fieldController,
+                      focusNode: fieldFocusNode,
+                      style: const TextStyle(fontSize: 14, color: Colors.black),
+                      decoration: InputDecoration(
+                        labelText: 'اختر الأسرة للمتابعة',
+                        prefixIcon: const Icon(Icons.family_restroom, color: Colors.indigo),
+                        suffixIcon: _selectedOsraId != null
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, color: Colors.grey),
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedOsraId = null;
+                                    _familySearchController.clear();
+                                  });
+                                },
+                              )
+                            : const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                        border: const OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    );
+                  },
+                  optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<Family> onSelected, Iterable<Family> options) {
+                    final screenWidth = MediaQuery.of(context).size.width;
+                    final optionsWidth = screenWidth > 650 ? 400.0 : screenWidth - 32.0;
+                    return Align(
+                      alignment: Alignment.topRight,
+                      child: Material(
+                        elevation: 4.0,
+                        borderRadius: BorderRadius.circular(8),
+                        clipBehavior: Clip.antiAlias,
+                        child: Container(
+                          width: optionsWidth,
+                          constraints: const BoxConstraints(maxHeight: 200),
+                          color: Colors.white,
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            itemBuilder: (BuildContext context, int index) {
+                              final Family option = options.elementAt(index);
+                              return InkWell(
+                                onTap: () => onSelected(option),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                                  decoration: BoxDecoration(
+                                    border: index < options.length - 1
+                                        ? Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5))
+                                        : null,
+                                  ),
+                                  child: Text(
+                                    option.osraName,
+                                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, color: Colors.black),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  onSelected: (Family selection) {
+                    setState(() {
+                      _selectedOsraId = selection.osraId;
+                    });
+                    if (selection.osraId != null) {
+                      financialProvider.loadFinancials(selection.osraId!);
+                    }
                   },
                 ),
                 if (_selectedOsraId != null) ...[

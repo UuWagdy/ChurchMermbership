@@ -146,43 +146,64 @@ class _StagesPromotionScreenState extends State<StagesPromotionScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Card(
-              elevation: 2,
+              elevation: 3,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    // From Stage Dropdown
-                    Expanded(
-                      child: DropdownButtonFormField<int>(
-                        value: _fromStageId,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'المرحلة الحالية (ترحيل من)',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        items: lookup.stages.map((s) => DropdownMenuItem(value: s['stage_id'] as int, child: Text(s['stage_name'] as String))).toList(),
-                        onChanged: (val) => _onFromStageChanged(val, lookup),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop = constraints.maxWidth > 600;
+
+                    final fromDropdown = DropdownButtonFormField<int>(
+                      value: _fromStageId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'المرحلة الحالية (ترحيل من)',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    const Icon(Icons.arrow_back, color: Colors.blueGrey), // RTL Arrow
-                    const SizedBox(width: 16),
-                    // To Stage Dropdown
-                    Expanded(
-                      child: DropdownButtonFormField<int>(
-                        value: _toStageId,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'المرحلة الجديدة (ترحيل إلى)',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        items: lookup.stages.map((s) => DropdownMenuItem(value: s['stage_id'] as int, child: Text(s['stage_name'] as String))).toList(),
-                        onChanged: (val) => setState(() => _toStageId = val),
+                      style: const TextStyle(fontSize: 14, color: Colors.black, fontFamily: 'Cairo'),
+                      items: lookup.stages.map((s) => DropdownMenuItem(value: s['stage_id'] as int, child: Text(s['stage_name'] as String, style: const TextStyle(fontSize: 14, fontFamily: 'Cairo')))).toList(),
+                      onChanged: (val) => _onFromStageChanged(val, lookup),
+                    );
+
+                    final toDropdown = DropdownButtonFormField<int>(
+                      value: _toStageId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'المرحلة الجديدة (ترحيل إلى)',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
-                    ),
-                  ],
+                      style: const TextStyle(fontSize: 14, color: Colors.black, fontFamily: 'Cairo'),
+                      items: lookup.stages.map((s) => DropdownMenuItem(value: s['stage_id'] as int, child: Text(s['stage_name'] as String, style: const TextStyle(fontSize: 14, fontFamily: 'Cairo')))).toList(),
+                      onChanged: (val) => setState(() => _toStageId = val),
+                    );
+
+                    if (isDesktop) {
+                      return Row(
+                        children: [
+                          Expanded(child: fromDropdown),
+                          const SizedBox(width: 16),
+                          Icon(Icons.arrow_back, color: Colors.blue.shade700), // RTL Arrow pointing left (since right is from, left is to)
+                          const SizedBox(width: 16),
+                          Expanded(child: toDropdown),
+                        ],
+                      );
+                    } else {
+                      return Column(
+                        children: [
+                          fromDropdown,
+                          const SizedBox(height: 12),
+                          Icon(Icons.arrow_downward, color: Colors.blue.shade700, size: 24),
+                          const SizedBox(height: 12),
+                          toDropdown,
+                        ],
+                      );
+                    }
+                  },
                 ),
               ),
             ),
