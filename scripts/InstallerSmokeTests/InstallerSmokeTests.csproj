@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <SupervisorSource Condition="'$(SupervisorSource)' == ''">../../AbonaFlemoonServerManager/ServerSupervisor.cs</SupervisorSource>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(SupervisorSource)" Link="ServerSupervisor.cs" />
+  </ItemGroup>
+</Project>

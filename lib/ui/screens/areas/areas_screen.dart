@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/lookup_provider.dart';
 import '../../../data/models/lookup_models.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 class AreasScreen extends StatefulWidget {
   const AreasScreen({super.key});
@@ -40,7 +41,13 @@ class _AreasScreenState extends State<AreasScreen> {
     final lookup = Provider.of<LookupProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('المناطق والشوارع')),
+      appBar: AppBar(
+        title: const Text('المناطق والشوارع'),
+        actions: const [
+          ThemeToggleButton(),
+          SizedBox(width: 8),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -199,28 +206,41 @@ class _AreasScreenState extends State<AreasScreen> {
                       children: [
                         Consumer<LookupProvider>(
                           builder: (context, lp, child) {
+                            final isDark = Theme.of(context).brightness == Brightness.dark;
+                            final streetBg = isDark ? const Color(0xFF0F172A).withValues(alpha: 0.6) : Colors.grey.shade50;
+                            final streetDivider = isDark ? const Color(0xFF334155) : Colors.grey.shade300;
+                            final textPrimary = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+                            final textSecondary = isDark ? const Color(0xFFCBD5E1) : Colors.grey.shade600;
+
                             if (_selectedArea == area.areaId) {
                               if (lp.streets.isEmpty) {
                                 return Container(
                                   padding: const EdgeInsets.all(16.0),
                                   width: double.infinity,
-                                  color: Colors.grey.shade50,
-                                  child: const Text('لا توجد شوارع مضافة لهذه المنطقة', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                                  color: streetBg,
+                                  child: Text(
+                                    'لا توجد شوارع مضافة لهذه المنطقة',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: textSecondary),
+                                  ),
                                 );
                               }
                               return Container(
-                                color: Colors.grey.shade50,
+                                color: streetBg,
                                 child: ListView.separated(
                                   shrinkWrap: true,
                                   physics: const NeverScrollableScrollPhysics(),
                                   itemCount: lp.streets.length,
-                                  separatorBuilder: (c, i) => Divider(height: 1, color: Colors.grey.shade300, indent: 32, endIndent: 32),
+                                  separatorBuilder: (c, i) => Divider(height: 1, color: streetDivider, indent: 32, endIndent: 32),
                                   itemBuilder: (context, sIdx) {
                                     final street = lp.streets[sIdx];
                                     return ListTile(
                                       contentPadding: const EdgeInsets.symmetric(horizontal: 48, vertical: 4),
-                                      leading: const Icon(Icons.subdirectory_arrow_left, size: 16, color: Colors.grey),
-                                      title: Text(street.streetName, style: const TextStyle(fontSize: 15)),
+                                      leading: Icon(Icons.subdirectory_arrow_left, size: 16, color: isDark ? const Color(0xFF94A3B8) : Colors.grey),
+                                      title: Text(
+                                        street.streetName,
+                                        style: TextStyle(fontSize: 15, color: textPrimary, fontWeight: FontWeight.w600),
+                                      ),
                                       trailing: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [

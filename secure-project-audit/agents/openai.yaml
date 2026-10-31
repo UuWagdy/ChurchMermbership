@@ -1,0 +1,6 @@
+interface:
+  display_name: "Secure Project Audit"
+  short_description: "Audit and harden full-stack apps safely"
+  default_prompt: "Use $secure-project-audit to classify the architecture, audit the authorized project, harden verified weaknesses when permitted, retest fixes, and produce an evidence-based release gate."
+policy:
+  allow_implicit_invocation: true

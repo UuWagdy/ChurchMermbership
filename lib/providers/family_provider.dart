@@ -9,16 +9,42 @@ class FamilyProvider with ChangeNotifier {
 
   List<Family> _families = [];
   bool _isLoading = false;
+  int _loadGeneration = 0;
+  String? error;
+  Family? _selectedFamily;
+  List<Person> _selectedFamilyMembers = [];
+  Future<List<Family>> Function()? _lastFetchAction;
 
   List<Family> get families => _families;
   bool get isLoading => _isLoading;
+  Family? get selectedFamily => _selectedFamily;
+  List<Person> get selectedFamilyMembers => _selectedFamilyMembers;
+
+  void setSelectedFamily(Family? family) {
+    _selectedFamily = family;
+    notifyListeners();
+  }
 
   Future<void> loadFamilies({String? query}) async {
+    final generation = ++_loadGeneration;
+    _lastFetchAction = () => _familyRepo.getFamilies(query: query);
     _isLoading = true;
+    error = null;
     notifyListeners();
-    _families = await _familyRepo.getFamilies(query: query);
-    _isLoading = false;
-    notifyListeners();
+    try {
+      final families = await _familyRepo.getFamilies(query: query);
+      if (generation != _loadGeneration) return;
+      _families = families;
+    } catch (e) {
+      if (generation != _loadGeneration) return;
+      error = 'تعذر تحميل الأسر. تحقق من الاتصال وحاول مرة أخرى';
+      _families = [];
+    } finally {
+      if (generation == _loadGeneration) {
+        _isLoading = false;
+        notifyListeners();
+      }
+    }
   }
 
   Future<void> loadFamiliesWithComplexFilters({
@@ -45,6 +71,37 @@ class FamilyProvider with ChangeNotifier {
     String? nidBirthDateMin,
     String? nidBirthDateMax,
   }) async {
+    final generation = ++_loadGeneration;
+    error = null;
+    _lastFetchAction = () async {
+      final searchRepo = SearchRepository();
+      final maps = await searchRepo.complexSearch(
+        areaIds: areaIds,
+        streetId: streetId,
+        mobile: mobile,
+        birthMonths: birthMonths,
+        personCount: personCount,
+        socialStatusIds: socialStatusIds,
+        economicStatusIds: economicStatusIds,
+        stageIds: stageIds,
+        job: job,
+        ageMin: ageMin,
+        ageMax: ageMax,
+        name: name,
+        healthStatusIds: healthStatusIds,
+        fatherId: fatherId,
+        mostwaIds: mostwaIds,
+        karabaIds: karabaIds,
+        nidGov: nidGov,
+        nidGender: nidGender,
+        nidAgeMin: nidAgeMin,
+        nidAgeMax: nidAgeMax,
+        nidBirthDateMin: nidBirthDateMin,
+        nidBirthDateMax: nidBirthDateMax,
+      );
+      return maps.map((m) => Family.fromMap(m)).toList();
+    };
+
     _isLoading = true;
     notifyListeners();
     try {
@@ -73,13 +130,42 @@ class FamilyProvider with ChangeNotifier {
         nidBirthDateMin: nidBirthDateMin,
         nidBirthDateMax: nidBirthDateMax,
       );
+      if (generation != _loadGeneration) return;
       _families = maps.map((m) => Family.fromMap(m)).toList();
     } catch (e) {
+      if (generation != _loadGeneration) return;
+      error = 'تعذر تنفيذ البحث. تحقق من الاتصال وحاول مرة أخرى';
       debugPrint('Error loading families with filters: $e');
       _families = [];
     }
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> refreshSilently() async {
+    try {
+      if (_lastFetchAction != null) {
+        _families = await _lastFetchAction!();
+      } else {
+        _families = await _familyRepo.getFamilies();
+      }
+      if (_selectedFamily?.osraId != null) {
+        _selectedFamily = await _familyRepo.getFamilyById(
+          _selectedFamily!.osraId!,
+        );
+        if (_selectedFamily == null) {
+          _selectedFamilyMembers = [];
+          notifyListeners();
+          return;
+        }
+        _selectedFamilyMembers = await _personRepo.getPersonsByFamily(
+          _selectedFamily!.osraId!,
+        );
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error in FamilyProvider.refreshSilently: $e');
+    }
   }
 
   Future<void> saveFamily(Family family) async {
@@ -96,6 +182,8 @@ class FamilyProvider with ChangeNotifier {
     await loadFamilies();
   }
 
+  Future<List<Person>> getAllPersons() => _personRepo.getAllPersons();
+
   Future<List<Person>> getPersons(int osraId) async {
     return await _personRepo.getPersonsByFamily(osraId);
   }
@@ -106,28 +194,30 @@ class FamilyProvider with ChangeNotifier {
     } else {
       await _personRepo.updatePerson(person);
     }
+    if (_selectedFamily?.osraId == person.osraId) {
+      _selectedFamilyMembers = await _personRepo.getPersonsByFamily(
+        person.osraId,
+      );
+    }
+    notifyListeners();
   }
 
   Future<void> deletePerson(int personId) async {
     await _personRepo.deletePerson(personId);
+    if (_selectedFamily?.osraId != null) {
+      _selectedFamilyMembers = await _personRepo.getPersonsByFamily(
+        _selectedFamily!.osraId!,
+      );
+    }
+    notifyListeners();
   }
 
   Future<List<Person>> getBirthdays(int month) async {
-    _isLoading = true;
-    notifyListeners();
-    final persons = await _personRepo.getPersonsByBirthMonth(month);
-    _isLoading = false;
-    notifyListeners();
-    return persons;
+    return await _personRepo.getPersonsByBirthMonth(month);
   }
 
   Future<List<Map<String, dynamic>>> getSummaryReport() async {
-    _isLoading = true;
-    notifyListeners();
-    final report = await _familyRepo.getSummaryReport();
-    _isLoading = false;
-    notifyListeners();
-    return report;
+    return await _familyRepo.getSummaryReport();
   }
 
   // Calculate age logic matching original C# (Year*365 + Month*30 + Day comparison)
@@ -135,12 +225,12 @@ class FamilyProvider with ChangeNotifier {
     final now = DateTime.now();
     int years = now.year - birthDate.year;
     int months = now.month - birthDate.month;
-    
+
     if (months < 0) {
       years--;
       months += 12;
     }
-    
+
     return '$years سنة و $months شهر';
   }
 
@@ -153,7 +243,9 @@ class FamilyProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<List<Map<String, dynamic>>> getFamiliesWithLastVisit(List<int> areaIds) async {
+  Future<List<Map<String, dynamic>>> getFamiliesWithLastVisit(
+    List<int> areaIds,
+  ) async {
     return await _familyRepo.getFamiliesWithLastVisit(areaIds);
   }
 }

@@ -1,3 +1,4 @@
+import '../../widgets/search_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/financial_provider.dart';
@@ -6,6 +7,7 @@ import '../../../providers/lookup_provider.dart';
 import '../../../data/models/tracking_models.dart';
 import '../../../data/models/family_models.dart';
 import '../../../data/services/pdf_service.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 class AidScreen extends StatefulWidget {
   const AidScreen({super.key});
@@ -14,15 +16,13 @@ class AidScreen extends StatefulWidget {
   State<AidScreen> createState() => _AidScreenState();
 }
 
-class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMixin {
+class _AidScreenState extends State<AidScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int? _selectedOsraId;
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
   final _ayneeController = TextEditingController();
-  final _familySearchController = TextEditingController();
-  final _familyFocusNode = FocusNode();
-  final _autocompleteKey = GlobalKey();
   int? _selectedService;
   String? _selectedVariableType;
 
@@ -42,8 +42,6 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
     _amountController.dispose();
     _notesController.dispose();
     _ayneeController.dispose();
-    _familySearchController.dispose();
-    _familyFocusNode.dispose();
     super.dispose();
   }
 
@@ -56,7 +54,10 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
       aynee: _ayneeController.text,
       notes: _notesController.text,
     );
-    await Provider.of<FinancialProvider>(context, listen: false).addFixedAid(aid);
+    await Provider.of<FinancialProvider>(
+      context,
+      listen: false,
+    ).addFixedAid(aid);
     _clearInputs();
   }
 
@@ -69,7 +70,10 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
       notes: _notesController.text,
       date1: DateTime.now().toIso8601String(),
     );
-    await Provider.of<FinancialProvider>(context, listen: false).addVariableAid(aid);
+    await Provider.of<FinancialProvider>(
+      context,
+      listen: false,
+    ).addVariableAid(aid);
     _clearInputs();
   }
 
@@ -79,19 +83,23 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
     _ayneeController.clear();
   }
 
-  void _printFixedAids(FinancialProvider financial, LookupProvider lookup) async {
+  void _printFixedAids(
+    FinancialProvider financial,
+    LookupProvider lookup,
+  ) async {
     if (financial.fixedAids.isEmpty || _selectedOsraId == null) return;
-    
+
     final familyProvider = Provider.of<FamilyProvider>(context, listen: false);
-    final familyName = familyProvider.families.firstWhere((f) => f.osraId == _selectedOsraId).osraName;
+    final match = familyProvider.families.where((f) => f.osraId == _selectedOsraId);
+    final familyName = match.isEmpty ? '---' : match.first.osraName;
 
     final headers = ['م', 'نوع الخدمة', 'المبلغ', 'عيني', 'الملاحظات'];
     final data = financial.fixedAids.asMap().entries.map((e) {
       final aid = e.value;
-      final serviceName = lookup.services.firstWhere((s) => s['khdma_id'] == aid.khdmaId, orElse: () => {'khdma_name': '---'})['khdma_name'];
+      final serviceName = lookup.getServiceName(aid.khdmaId);
       return [
         (e.key + 1).toString(),
-        serviceName as String,
+        serviceName,
         '${aid.countValue} ج.م',
         aid.aynee ?? '---',
         aid.notes ?? '---',
@@ -108,9 +116,10 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
 
   void _printVariableAids(FinancialProvider financial) async {
     if (financial.variableAids.isEmpty || _selectedOsraId == null) return;
-    
+
     final familyProvider = Provider.of<FamilyProvider>(context, listen: false);
-    final familyName = familyProvider.families.firstWhere((f) => f.osraId == _selectedOsraId).osraName;
+    final match = familyProvider.families.where((f) => f.osraId == _selectedOsraId);
+    final familyName = match.isEmpty ? '---' : match.first.osraName;
 
     final headers = ['م', 'النوع', 'المبلغ', 'التاريخ', 'الملاحظات'];
     final data = financial.variableAids.asMap().entries.map((e) {
@@ -137,10 +146,15 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
     final familyProvider = Provider.of<FamilyProvider>(context);
     final financialProvider = Provider.of<FinancialProvider>(context);
     final lookup = Provider.of<LookupProvider>(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('حساب المساعدات'),
+        actions: const [
+          ThemeToggleButton(),
+          SizedBox(width: 8),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -151,145 +165,85 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
           ],
         ),
       ),
-      body: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 2))],
-            ),
-            child: Column(
-              children: [
-                RawAutocomplete<Family>(
-                  key: _autocompleteKey,
-                  textEditingController: _familySearchController,
-                  focusNode: _familyFocusNode,
-                  optionsBuilder: (TextEditingValue textEditingValue) {
-                    final families = familyProvider.families;
-                    if (textEditingValue.text.isEmpty) {
-                      return families;
-                    }
-                    return families.where((Family option) {
-                      return option.osraName.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                    });
-                  },
-                  displayStringForOption: (Family option) => option.osraName,
-                  fieldViewBuilder: (BuildContext context, TextEditingController fieldController, FocusNode fieldFocusNode, VoidCallback onFieldSubmitted) {
-                    return TextFormField(
-                      controller: fieldController,
-                      focusNode: fieldFocusNode,
-                      style: const TextStyle(fontSize: 14, color: Colors.black),
-                      decoration: InputDecoration(
-                        labelText: 'اختر الأسرة للمتابعة',
-                        prefixIcon: const Icon(Icons.family_restroom, color: Colors.indigo),
-                        suffixIcon: _selectedOsraId != null
-                            ? IconButton(
-                                icon: const Icon(Icons.clear, color: Colors.grey),
-                                onPressed: () {
-                                  setState(() {
-                                    _selectedOsraId = null;
-                                    _familySearchController.clear();
-                                  });
-                                },
-                              )
-                            : const Icon(Icons.arrow_drop_down, color: Colors.grey),
-                        border: const OutlineInputBorder(),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      ),
-                    );
-                  },
-                  optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<Family> onSelected, Iterable<Family> options) {
-                    final screenWidth = MediaQuery.of(context).size.width;
-                    final optionsWidth = screenWidth > 650 ? 400.0 : screenWidth - 32.0;
-                    return Align(
-                      alignment: Alignment.topRight,
-                      child: Material(
-                        elevation: 4.0,
-                        borderRadius: BorderRadius.circular(8),
-                        clipBehavior: Clip.antiAlias,
-                        child: Container(
-                          width: optionsWidth,
-                          constraints: const BoxConstraints(maxHeight: 200),
-                          color: Colors.white,
-                          child: ListView.builder(
-                            padding: EdgeInsets.zero,
-                            shrinkWrap: true,
-                            itemCount: options.length,
-                            itemBuilder: (BuildContext context, int index) {
-                              final Family option = options.elementAt(index);
-                              return InkWell(
-                                onTap: () => onSelected(option),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                                  decoration: BoxDecoration(
-                                    border: index < options.length - 1
-                                        ? Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5))
-                                        : null,
-                                  ),
-                                  child: Text(
-                                    option.osraName,
-                                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, color: Colors.black),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                  onSelected: (Family selection) {
-                    setState(() {
-                      _selectedOsraId = selection.osraId;
-                    });
-                    if (selection.osraId != null) {
-                      financialProvider.loadFinancials(selection.osraId!);
-                    }
-                  },
-                ),
-                if (_selectedOsraId != null) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.indigo.shade700,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.account_balance_wallet, color: Colors.white, size: 20),
-                        const SizedBox(width: 12),
-                        Text(
-                          'إجمالي المساعدات: ${financialProvider.calculateTotalAids()} ج.م',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
-                        ),
-                      ],
-                    ),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerScrolled) => [
+          SliverToBoxAdapter(
+            child: Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.blue.shade50,
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
                   ),
                 ],
-              ],
-            ),
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildFixedAidTab(financialProvider, lookup),
-                _buildVariableAidTab(financialProvider),
-              ],
+              ),
+              child: Column(
+                children: [
+                  SearchPicker<Family>(
+                    options: familyProvider.families,
+                    label: (f) => f.osraName,
+                    searchText: (f) => '${f.osraName} ${f.code ?? ''}',
+                    hint: 'اختر الأسرة للمتابعة',
+                    onCleared: () => setState(() => _selectedOsraId = null),
+                    onSelected: (family) {
+                      setState(() => _selectedOsraId = family.osraId);
+                      financialProvider.loadFinancials(family.osraId!);
+                    },
+                  ),
+                  if (_selectedOsraId != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 16,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.shade700,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.account_balance_wallet,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'إجمالي المساعدات: ${financialProvider.calculateTotalAids()} ج.م',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ],
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildFixedAidTab(financialProvider, lookup),
+            _buildVariableAidTab(financialProvider),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildFixedAidTab(FinancialProvider financial, LookupProvider lookup) {
-    return Column(
+    return ListView(
       children: [
         _buildEntryForm(
           title: 'إضافة مساعدة ثابتة',
@@ -298,21 +252,39 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
           child: LayoutBuilder(
             builder: (context, constraints) {
               final isDesktop = constraints.maxWidth > 650;
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              final textPrimary = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+
               final dropdown = DropdownButtonFormField<int>(
                 isExpanded: true,
                 value: _selectedService,
+                dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                 decoration: const InputDecoration(
                   labelText: 'الخدمة',
                   prefixIcon: Icon(Icons.settings_suggest, size: 18),
                   border: OutlineInputBorder(),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
                 ),
-                style: const TextStyle(fontSize: 12, color: Colors.black),
-                items: lookup.services.map<DropdownMenuItem<int>>((s) => DropdownMenuItem<int>(value: s['khdma_id'] as int, child: Text(s['khdma_name'] as String, style: const TextStyle(fontSize: 12)))).toList(),
+                style: TextStyle(fontSize: 12, color: textPrimary),
+                items: lookup.services
+                    .where((s) => s['khdma_id'] is num)
+                    .map<DropdownMenuItem<int>>(
+                      (s) => DropdownMenuItem<int>(
+                        value: (s['khdma_id'] as num).toInt(),
+                        child: Text(
+                          s['khdma_name']?.toString() ?? '---',
+                          style: TextStyle(fontSize: 12, color: textPrimary),
+                        ),
+                      ),
+                    )
+                    .toList(),
                 onChanged: (val) => setState(() => _selectedService = val),
               );
-              
+
               final amount = TextField(
                 controller: _amountController,
                 style: const TextStyle(fontSize: 12),
@@ -320,11 +292,14 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
                   labelText: 'المبلغ',
                   border: OutlineInputBorder(),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 10,
+                  ),
                 ),
                 keyboardType: TextInputType.number,
               );
-              
+
               final aynee = TextField(
                 controller: _ayneeController,
                 style: const TextStyle(fontSize: 12),
@@ -333,10 +308,13 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
                   prefixIcon: Icon(Icons.inventory_2_outlined, size: 18),
                   border: OutlineInputBorder(),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 10,
+                  ),
                 ),
               );
-              
+
               final notes = TextField(
                 controller: _notesController,
                 style: const TextStyle(fontSize: 12),
@@ -345,7 +323,10 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
                   prefixIcon: Icon(Icons.notes, size: 18),
                   border: OutlineInputBorder(),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 10,
+                  ),
                 ),
               );
 
@@ -390,62 +371,125 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.teal.shade700,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
               ),
             ),
             const SizedBox(width: 12),
             ElevatedButton.icon(
-              onPressed: financial.fixedAids.isEmpty ? null : () => _printFixedAids(financial, lookup),
+              onPressed: financial.fixedAids.isEmpty
+                  ? null
+                  : () => _printFixedAids(financial, lookup),
               icon: const Icon(Icons.picture_as_pdf),
               label: const Text('طباعة'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red.shade600,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
               ),
             ),
           ],
         ),
-        Expanded(
-          child: ListView.separated(
+        if (_selectedOsraId == null)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Text('اختر الأسرة لعرض المساعدات'),
+          ),
+        if (financial.isLoading) const LinearProgressIndicator(),
+        if (_selectedOsraId != null && financial.error != null)
+          TextButton(
+            onPressed: () => financial.loadFinancials(_selectedOsraId!),
+            child: Text('${financial.error} — إعادة المحاولة'),
+          ),
+        if (_selectedOsraId != null &&
+            !financial.isLoading &&
+            financial.error == null &&
+            financial.fixedAids.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Text('لا توجد مساعدات مسجلة لهذه الأسرة'),
+          ),
+        if (_selectedOsraId != null &&
+            financial.lastFamilyId == _selectedOsraId)
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             itemCount: financial.fixedAids.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              final textSecondary = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569);
               final aid = financial.fixedAids[index];
-              final serviceName = lookup.services.firstWhere((s) => s['khdma_id'] == aid.khdmaId, orElse: () => {'khdma_name': '---'})['khdma_name'];
+              final serviceName = lookup.getServiceName(aid.khdmaId);
               return Card(
                 elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   leading: CircleAvatar(
                     backgroundColor: Colors.teal.shade50,
-                    child: Icon(Icons.check_circle, color: Colors.teal.shade700),
+                    child: Icon(
+                      Icons.check_circle,
+                      color: Colors.teal.shade700,
+                    ),
                   ),
                   title: Text(
                     '$serviceName: ${aid.countValue} ج.م',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                   subtitle: Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (aid.aynee != null && aid.aynee!.isNotEmpty)
-                          Row(
+                          Wrap(
                             children: [
-                              const Icon(Icons.inventory, size: 14, color: Colors.grey),
+                              const Icon(
+                                Icons.inventory,
+                                size: 14,
+                                color: Colors.grey,
+                              ),
                               const SizedBox(width: 4),
-                              Text('عيني: ${aid.aynee}', style: const TextStyle(color: Colors.blueGrey)),
+                              Text(
+                                'عيني: ${aid.aynee}',
+                                style: TextStyle(color: textSecondary, fontWeight: FontWeight.w600),
+                              ),
                             ],
                           ),
                         if (aid.notes != null && aid.notes!.isNotEmpty)
                           Row(
                             children: [
-                              const Icon(Icons.sticky_note_2, size: 14, color: Colors.grey),
+                              Icon(
+                                Icons.sticky_note_2,
+                                size: 14,
+                                color: textSecondary,
+                              ),
                               const SizedBox(width: 4),
-                              Expanded(child: Text('ملاحظات: ${aid.notes}', style: const TextStyle(fontStyle: FontStyle.italic))),
+                              Expanded(
+                                child: Text(
+                                  'ملاحظات: ${aid.notes}',
+                                  style: TextStyle(
+                                    fontStyle: FontStyle.italic,
+                                    color: textSecondary,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                       ],
@@ -470,13 +514,14 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
               );
             },
           ),
-        ),
       ],
     );
   }
 
   void _showEditFixedAidDialog(FixedAid aid) {
-    final amountController = TextEditingController(text: aid.countValue.toString());
+    final amountController = TextEditingController(
+      text: aid.countValue.toString(),
+    );
     final ayneeController = TextEditingController(text: aid.aynee);
     final notesController = TextEditingController(text: aid.notes);
     int? editService = aid.khdmaId;
@@ -504,7 +549,16 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
                     prefixIcon: Icon(Icons.settings_suggest),
                     border: OutlineInputBorder(),
                   ),
-                  items: Provider.of<LookupProvider>(context, listen: false).services.map<DropdownMenuItem<int>>((s) => DropdownMenuItem<int>(value: s['khdma_id'] as int, child: Text(s['khdma_name'] as String))).toList(),
+                  items: Provider.of<LookupProvider>(context, listen: false)
+                      .services
+                      .where((s) => s['khdma_id'] is num)
+                      .map<DropdownMenuItem<int>>(
+                        (s) => DropdownMenuItem<int>(
+                          value: (s['khdma_id'] as num).toInt(),
+                          child: Text(s['khdma_name']?.toString() ?? '---'),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (val) => setDialogState(() => editService = val),
                 ),
                 const SizedBox(height: 16),
@@ -553,7 +607,10 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
                   aynee: ayneeController.text,
                   notes: notesController.text,
                 );
-                await Provider.of<FinancialProvider>(context, listen: false).updateFixedAid(updatedAid);
+                await Provider.of<FinancialProvider>(
+                  context,
+                  listen: false,
+                ).updateFixedAid(updatedAid);
                 if (mounted) Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(
@@ -587,10 +644,16 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
           ),
           ElevatedButton(
             onPressed: () async {
-              await Provider.of<FinancialProvider>(context, listen: false).deleteFixedAid(aid.countId!, aid.osraId);
+              await Provider.of<FinancialProvider>(
+                context,
+                listen: false,
+              ).deleteFixedAid(aid.countId!, aid.osraId);
               if (mounted) Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('تأكيد الحذف'),
           ),
         ],
@@ -599,7 +662,9 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
   }
 
   void _showEditVariableAidDialog(VariableAid aid) {
-    final amountController = TextEditingController(text: aid.countAdd.toString());
+    final amountController = TextEditingController(
+      text: aid.countAdd.toString(),
+    );
     final notesController = TextEditingController(text: aid.notes);
     String? editType = aid.type;
 
@@ -669,7 +734,10 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
                   notes: notesController.text,
                   date1: aid.date1,
                 );
-                await Provider.of<FinancialProvider>(context, listen: false).updateVariableAid(updatedAid);
+                await Provider.of<FinancialProvider>(
+                  context,
+                  listen: false,
+                ).updateVariableAid(updatedAid);
                 if (mounted) Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(
@@ -691,10 +759,16 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
         title: const Text('حذف مساعدة'),
         content: const Text('هل أنت متأكد من حذف هذه المساعدة المتغيرة؟'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
           TextButton(
             onPressed: () async {
-              await Provider.of<FinancialProvider>(context, listen: false).deleteVariableAid(aid.count2Id!, aid.osraId);
+              await Provider.of<FinancialProvider>(
+                context,
+                listen: false,
+              ).deleteVariableAid(aid.count2Id!, aid.osraId);
               if (mounted) Navigator.pop(context);
             },
             child: const Text('حذف', style: TextStyle(color: Colors.red)),
@@ -705,7 +779,7 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
   }
 
   Widget _buildVariableAidTab(FinancialProvider financial) {
-    return Column(
+    return ListView(
       children: [
         _buildEntryForm(
           title: 'إضافة مساعدة متغيرة',
@@ -722,14 +796,30 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
                   prefixIcon: Icon(Icons.merge_type, size: 18),
                   border: OutlineInputBorder(),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
                 ),
-                style: const TextStyle(fontSize: 12, color: Colors.black),
+                dropdownColor: Theme.of(context).cardColor,
+                style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFF8FAFC) : Colors.black87),
                 items: const [
-                  DropdownMenuItem(value: 'علاج', child: Text('علاج', style: TextStyle(fontSize: 12))),
-                  DropdownMenuItem(value: 'مدرسة', child: Text('مدرسة', style: TextStyle(fontSize: 12))),
-                  DropdownMenuItem(value: 'طوارئ', child: Text('طوارئ', style: TextStyle(fontSize: 12))),
-                  DropdownMenuItem(value: 'أخرى', child: Text('أخرى', style: TextStyle(fontSize: 12))),
+                  DropdownMenuItem(
+                    value: 'علاج',
+                    child: Text('علاج', style: TextStyle(fontSize: 12)),
+                  ),
+                  DropdownMenuItem(
+                    value: 'مدرسة',
+                    child: Text('مدرسة', style: TextStyle(fontSize: 12)),
+                  ),
+                  DropdownMenuItem(
+                    value: 'طوارئ',
+                    child: Text('طوارئ', style: TextStyle(fontSize: 12)),
+                  ),
+                  DropdownMenuItem(
+                    value: 'أخرى',
+                    child: Text('أخرى', style: TextStyle(fontSize: 12)),
+                  ),
                 ],
                 onChanged: (val) => setState(() => _selectedVariableType = val),
               );
@@ -741,7 +831,10 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
                   labelText: 'المبلغ',
                   border: OutlineInputBorder(),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 10,
+                  ),
                 ),
                 keyboardType: TextInputType.number,
               );
@@ -754,7 +847,10 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
                   prefixIcon: Icon(Icons.description_outlined, size: 18),
                   border: OutlineInputBorder(),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 10,
+                  ),
                 ),
               );
 
@@ -795,24 +891,54 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blueGrey.shade700,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
               ),
             ),
             const SizedBox(width: 12),
             ElevatedButton.icon(
-              onPressed: financial.variableAids.isEmpty ? null : () => _printVariableAids(financial),
+              onPressed: financial.variableAids.isEmpty
+                  ? null
+                  : () => _printVariableAids(financial),
               icon: const Icon(Icons.print_outlined),
               label: const Text('طباعة السجل'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red.shade600,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
               ),
             ),
           ],
         ),
-        Expanded(
-          child: ListView.separated(
+        if (_selectedOsraId == null)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Text('اختر الأسرة لعرض المساعدات'),
+          ),
+        if (financial.isLoading) const LinearProgressIndicator(),
+        if (_selectedOsraId != null && financial.error != null)
+          TextButton(
+            onPressed: () => financial.loadFinancials(_selectedOsraId!),
+            child: Text('${financial.error} — إعادة المحاولة'),
+          ),
+        if (_selectedOsraId != null &&
+            !financial.isLoading &&
+            financial.error == null &&
+            financial.variableAids.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Text('لا توجد مساعدات مسجلة لهذه الأسرة'),
+          ),
+        if (_selectedOsraId != null &&
+            financial.lastFamilyId == _selectedOsraId)
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             itemCount: financial.variableAids.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -820,35 +946,65 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
               final aid = financial.variableAids[index];
               return Card(
                 elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   leading: CircleAvatar(
                     backgroundColor: Colors.blueGrey.shade50,
-                    child: Icon(Icons.history_toggle_off, color: Colors.blueGrey.shade700),
+                    child: Icon(
+                      Icons.history_toggle_off,
+                      color: Colors.blueGrey.shade700,
+                    ),
                   ),
                   title: Text(
                     '${aid.type}: ${aid.countAdd} ج.م',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                   subtitle: Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        Wrap(
                           children: [
-                            const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                            const Icon(
+                              Icons.calendar_today,
+                              size: 14,
+                              color: Colors.grey,
+                            ),
                             const SizedBox(width: 4),
-                            Text('التاريخ: ${aid.date1?.split('T')[0]}', style: const TextStyle(color: Colors.blueGrey)),
+                            Text(
+                              'التاريخ: ${aid.date1?.split('T')[0]}',
+                              style: const TextStyle(color: Colors.blueGrey),
+                            ),
                           ],
                         ),
                         if (aid.notes != null && aid.notes!.isNotEmpty)
                           Row(
                             children: [
-                              const Icon(Icons.info_outline, size: 14, color: Colors.grey),
+                              const Icon(
+                                Icons.info_outline,
+                                size: 14,
+                                color: Colors.grey,
+                              ),
                               const SizedBox(width: 4),
-                              Expanded(child: Text('ملاحظات: ${aid.notes}', style: const TextStyle(fontStyle: FontStyle.italic))),
+                              Expanded(
+                                child: Text(
+                                  'ملاحظات: ${aid.notes}',
+                                  style: const TextStyle(
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                       ],
@@ -858,12 +1014,18 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.edit_location_alt, color: Colors.blue),
+                        icon: const Icon(
+                          Icons.edit_location_alt,
+                          color: Colors.blue,
+                        ),
                         onPressed: () => _showEditVariableAidDialog(aid),
                         tooltip: 'تعديل',
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_forever, color: Colors.red),
+                        icon: const Icon(
+                          Icons.delete_forever,
+                          color: Colors.red,
+                        ),
                         onPressed: () => _confirmDeleteVariableAid(aid),
                         tooltip: 'حذف',
                       ),
@@ -873,7 +1035,6 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
               );
             },
           ),
-        ),
       ],
     );
   }
@@ -895,11 +1056,18 @@ class _AidScreenState extends State<AidScreen> with SingleTickerProviderStateMix
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Icon(icon, color: color),
                   const SizedBox(width: 8),
-                  Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
               const Divider(height: 24),

@@ -26,6 +26,13 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadUsers();
+    _checkMaintenancePermission();
+  }
+
+  @override
   void dispose() {
     _tabController?.dispose();
     super.dispose();

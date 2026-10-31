@@ -1,3 +1,4 @@
+import '../../widgets/search_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/tracking_provider.dart';
@@ -17,9 +18,6 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
   int? _selectedOsraId;
   final _nameController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
-  final _familySearchController = TextEditingController();
-  final _familyFocusNode = FocusNode();
-  final _autocompleteKey = GlobalKey();
 
   @override
   void initState() {
@@ -32,24 +30,29 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _familySearchController.dispose();
-    _familyFocusNode.dispose();
     super.dispose();
   }
 
   void _addOccasion() async {
     if (_selectedOsraId == null || _nameController.text.isEmpty) return;
-    await Provider.of<TrackingProvider>(context, listen: false)
-        .addOccasion(_selectedOsraId!, _nameController.text, _selectedDate);
+    await Provider.of<TrackingProvider>(
+      context,
+      listen: false,
+    ).addOccasion(_selectedOsraId!, _nameController.text, _selectedDate);
     _nameController.clear();
   }
 
   void _printOccasions() async {
-    final trackingProvider = Provider.of<TrackingProvider>(context, listen: false);
+    final trackingProvider = Provider.of<TrackingProvider>(
+      context,
+      listen: false,
+    );
     if (trackingProvider.occasions.isEmpty) return;
 
     final familyProvider = Provider.of<FamilyProvider>(context, listen: false);
-    final familyName = familyProvider.families.firstWhere((f) => f.osraId == _selectedOsraId).osraName;
+    final familyName = familyProvider.families
+        .firstWhere((f) => f.osraId == _selectedOsraId)
+        .osraName;
 
     final headers = ['م', 'المناسبة', 'التاريخ', 'الشهر'];
     final data = trackingProvider.occasions.asMap().entries.map((e) {
@@ -93,11 +96,13 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
       appBar: AppBar(title: const Text('سجل المناسبات')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
+        child: ListView(
           children: [
             Card(
               elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(12.0), // Reduced from 20
                 child: Column(
@@ -105,101 +110,34 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.event_available, color: Colors.orange.shade800),
+                        Icon(
+                          Icons.event_available,
+                          color: Colors.orange.shade800,
+                        ),
                         const SizedBox(width: 8),
-                        const Text('تسجيل مناسبة جديدة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const Text(
+                          'تسجيل مناسبة جديدة',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                     const Divider(height: 24),
                     LayoutBuilder(
                       builder: (context, constraints) {
                         final isDesktop = constraints.maxWidth > 550;
-                        final familyAutocomplete = RawAutocomplete<Family>(
-                          key: _autocompleteKey,
-                          textEditingController: _familySearchController,
-                          focusNode: _familyFocusNode,
-                          optionsBuilder: (TextEditingValue textEditingValue) {
-                            final families = familyProvider.families;
-                            if (textEditingValue.text.isEmpty) {
-                              return families;
-                            }
-                            return families.where((Family option) {
-                              return option.osraName.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                            });
-                          },
-                          displayStringForOption: (Family option) => option.osraName,
-                          fieldViewBuilder: (BuildContext context, TextEditingController fieldController, FocusNode fieldFocusNode, VoidCallback onFieldSubmitted) {
-                            return TextFormField(
-                              controller: fieldController,
-                              focusNode: fieldFocusNode,
-                              style: const TextStyle(fontSize: 12, color: Colors.black),
-                              decoration: InputDecoration(
-                                labelText: 'اختر الأسرة',
-                                prefixIcon: const Icon(Icons.people, size: 18),
-                                suffixIcon: _selectedOsraId != null
-                                    ? IconButton(
-                                        icon: const Icon(Icons.clear, size: 18, color: Colors.grey),
-                                        onPressed: () {
-                                          setState(() {
-                                            _selectedOsraId = null;
-                                            _familySearchController.clear();
-                                          });
-                                        },
-                                      )
-                                    : const Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey),
-                                border: const OutlineInputBorder(),
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                              ),
-                            );
-                          },
-                          optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<Family> onSelected, Iterable<Family> options) {
-                            final screenWidth = MediaQuery.of(context).size.width;
-                            final optionsWidth = isDesktop ? 350.0 : screenWidth - 64.0;
-                            return Align(
-                              alignment: Alignment.topRight,
-                              child: Material(
-                                elevation: 4.0,
-                                borderRadius: BorderRadius.circular(8),
-                                clipBehavior: Clip.antiAlias,
-                                child: Container(
-                                  width: optionsWidth,
-                                  constraints: const BoxConstraints(maxHeight: 200),
-                                  color: Colors.white,
-                                  child: ListView.builder(
-                                    padding: EdgeInsets.zero,
-                                    shrinkWrap: true,
-                                    itemCount: options.length,
-                                    itemBuilder: (BuildContext context, int index) {
-                                      final Family option = options.elementAt(index);
-                                      return InkWell(
-                                        onTap: () => onSelected(option),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                                          decoration: BoxDecoration(
-                                            border: index < options.length - 1
-                                                ? Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5))
-                                                : null,
-                                          ),
-                                          child: Text(
-                                            option.osraName,
-                                            style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: Colors.black),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                          onSelected: (Family selection) {
-                            setState(() {
-                              _selectedOsraId = selection.osraId;
-                            });
-                            if (selection.osraId != null) {
-                              trackingProvider.loadOccasions(selection.osraId!);
-                            }
+                        final familyAutocomplete = SearchPicker<Family>(
+                          options: familyProvider.families,
+                          label: (f) => f.osraName,
+                          searchText: (f) => '${f.osraName} ${f.code ?? ''}',
+                          hint: 'اختر الأسرة',
+                          onCleared: () =>
+                              setState(() => _selectedOsraId = null),
+                          onSelected: (f) {
+                            setState(() => _selectedOsraId = f.osraId);
+                            trackingProvider.loadOccasions(f.osraId!);
                           },
                         );
 
@@ -211,7 +149,10 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
                             prefixIcon: Icon(Icons.celebration, size: 18),
                             border: OutlineInputBorder(),
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 10,
+                            ),
                           ),
                         );
 
@@ -223,7 +164,10 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
                               prefixIcon: Icon(Icons.calendar_month, size: 18),
                               border: OutlineInputBorder(),
                               isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 8,
+                              ),
                             ),
                             child: Text(
                               _selectedDate.toLocal().toString().split(' ')[0],
@@ -264,25 +208,39 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
                       alignment: WrapAlignment.end,
                       children: [
                         ElevatedButton.icon(
-                          onPressed: _selectedOsraId == null ? null : _addOccasion,
+                          onPressed: _selectedOsraId == null
+                              ? null
+                              : _addOccasion,
                           icon: const Icon(Icons.save_as),
                           label: const Text('تسجيل المناسبة'),
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 16,
+                              horizontal: 20,
+                            ),
                             backgroundColor: Colors.orange.shade800,
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
                         ElevatedButton.icon(
-                          onPressed: trackingProvider.occasions.isEmpty ? null : _printOccasions,
+                          onPressed: trackingProvider.occasions.isEmpty
+                              ? null
+                              : _printOccasions,
                           icon: const Icon(Icons.print_rounded),
                           label: const Text('طباعة السجل'),
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 16,
+                              horizontal: 20,
+                            ),
                             backgroundColor: Colors.blueGrey.shade700,
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
                       ],
@@ -292,31 +250,54 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            Expanded(
+            SizedBox(
               child: trackingProvider.isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _selectedOsraId == null
-                      ? const Center(child: Text('اختر أسرة لعرض سجل المناسبات'))
-                      : ListView.builder(
-                          itemCount: trackingProvider.occasions.length,
-                          itemBuilder: (context, index) {
-                            final occasion = trackingProvider.occasions[index];
-                            return ListTile(
-                              leading: const Icon(Icons.event_note, color: Colors.orange),
-                              title: Text(occasion.monasbaName),
-                              subtitle: Text(occasion.monasbaDate?.split('T')[0] ?? 'بدون تاريخ'),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text('شهر: ${occasion.month ?? "-"}'),
-                                  const SizedBox(width: 8),
-                                  IconButton(icon: const Icon(Icons.edit, color: Colors.blue, size: 20), onPressed: () => _showEditOccasionDialog(occasion)),
-                                  IconButton(icon: const Icon(Icons.delete, color: Colors.red, size: 20), onPressed: () => _confirmDeleteOccasion(occasion)),
-                                ],
+                  ? const Center(child: Text('اختر أسرة لعرض سجل المناسبات'))
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: trackingProvider.occasions.length,
+                      itemBuilder: (context, index) {
+                        final occasion = trackingProvider.occasions[index];
+                        return ListTile(
+                          leading: const Icon(
+                            Icons.event_note,
+                            color: Colors.orange,
+                          ),
+                          title: Text(occasion.monasbaName),
+                          subtitle: Text(
+                            occasion.monasbaDate?.split('T')[0] ?? 'بدون تاريخ',
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('شهر: ${occasion.month ?? "-"}'),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: Colors.blue,
+                                  size: 20,
+                                ),
+                                onPressed: () =>
+                                    _showEditOccasionDialog(occasion),
                               ),
-                            );
-                          },
-                        ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                                onPressed: () =>
+                                    _confirmDeleteOccasion(occasion),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -336,11 +317,18 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم المناسبة')),
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'اسم المناسبة'),
+              ),
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(child: Text('التاريخ: ${editDate.toLocal().toString().split(' ')[0]}')),
+                  Expanded(
+                    child: Text(
+                      'التاريخ: ${editDate.toLocal().toString().split(' ')[0]}',
+                    ),
+                  ),
                   ElevatedButton(
                     onPressed: () async {
                       final DateTime? picked = await showDatePicker(
@@ -360,7 +348,10 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
             TextButton(
               onPressed: () async {
                 if (nameController.text.isNotEmpty) {
@@ -371,7 +362,10 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
                     monasbaDate: editDate.toIso8601String(),
                     month: editDate.month.toString(),
                   );
-                  await Provider.of<TrackingProvider>(context, listen: false).updateOccasion(updatedOccasion);
+                  await Provider.of<TrackingProvider>(
+                    context,
+                    listen: false,
+                  ).updateOccasion(updatedOccasion);
                   if (mounted) Navigator.pop(context);
                 }
               },
@@ -390,10 +384,16 @@ class _OccasionsScreenState extends State<OccasionsScreen> {
         title: const Text('حذف مناسبة'),
         content: Text('هل أنت متأكد من حذف مناسبة "${occasion.monasbaName}"؟'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
           TextButton(
             onPressed: () async {
-              await Provider.of<TrackingProvider>(context, listen: false).deleteOccasion(occasion.monasbaId!, occasion.osraId);
+              await Provider.of<TrackingProvider>(
+                context,
+                listen: false,
+              ).deleteOccasion(occasion.monasbaId!, occasion.osraId);
               if (mounted) Navigator.pop(context);
             },
             child: const Text('حذف', style: TextStyle(color: Colors.red)),

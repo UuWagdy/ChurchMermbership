@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../providers/lookup_provider.dart';
 import '../../../providers/family_provider.dart';
 import '../../../data/models/family_models.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 class StagesPromotionScreen extends StatefulWidget {
   const StagesPromotionScreen({super.key});
@@ -82,17 +83,19 @@ class _StagesPromotionScreenState extends State<StagesPromotionScreen> {
     });
     
     // Find name of the selected from-stage
-    final fromStage = lookup.stages.firstWhere((s) => s['stage_id'] == stageId, orElse: () => {});
+    final matches = lookup.stages.where((s) => s['stage_id'] == stageId);
+    final fromStage = matches.isEmpty ? <String, dynamic>{} : matches.first;
     final fromName = fromStage['stage_name'] as String?;
 
     if (fromName != null && _sequenceMap.containsKey(fromName)) {
       final nextName = _sequenceMap[fromName];
-      final toStage = lookup.stages.firstWhere(
-        (s) => (s['stage_name'] as String).toLowerCase().trim() == nextName!.toLowerCase().trim(),
-        orElse: () => {},
+      final toMatches = lookup.stages.where(
+        (s) => (s['stage_name']?.toString() ?? '').toLowerCase().trim() == nextName!.toLowerCase().trim(),
       );
-      if (toStage.isNotEmpty) {
-        setState(() => _toStageId = toStage['stage_id'] as int);
+      final toStage = toMatches.isEmpty ? <String, dynamic>{} : toMatches.first;
+      if (toStage.isNotEmpty && toStage['stage_id'] != null) {
+        final toId = toStage['stage_id'];
+        setState(() => _toStageId = toId is num ? toId.toInt() : int.tryParse('$toId'));
       } else {
         setState(() => _toStageId = null);
       }
@@ -137,9 +140,16 @@ class _StagesPromotionScreenState extends State<StagesPromotionScreen> {
   @override
   Widget build(BuildContext context) {
     final lookup = Provider.of<LookupProvider>(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569);
+    final dropdownFill = isDark ? const Color(0xFF1E293B) : Colors.white;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('ترحيل المراحل التعليمية')),
+      appBar: AppBar(
+        title: const Text('ترحيل المراحل التعليمية'),
+        actions: const [ThemeToggleButton()],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -157,28 +167,42 @@ class _StagesPromotionScreenState extends State<StagesPromotionScreen> {
                     final fromDropdown = DropdownButtonFormField<int>(
                       value: _fromStageId,
                       isExpanded: true,
+                      dropdownColor: dropdownFill,
                       decoration: const InputDecoration(
                         labelText: 'المرحلة الحالية (ترحيل من)',
                         border: OutlineInputBorder(),
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
-                      style: const TextStyle(fontSize: 14, color: Colors.black, fontFamily: 'Cairo'),
-                      items: lookup.stages.map((s) => DropdownMenuItem(value: s['stage_id'] as int, child: Text(s['stage_name'] as String, style: const TextStyle(fontSize: 14, fontFamily: 'Cairo')))).toList(),
+                      style: TextStyle(fontSize: 14, color: textPrimary, fontFamily: 'Cairo'),
+                      items: lookup.stages.map((s) => DropdownMenuItem(
+                        value: s['stage_id'] as int,
+                        child: Text(
+                          s['stage_name'] as String,
+                          style: TextStyle(fontSize: 14, fontFamily: 'Cairo', color: textPrimary),
+                        ),
+                      )).toList(),
                       onChanged: (val) => _onFromStageChanged(val, lookup),
                     );
 
                     final toDropdown = DropdownButtonFormField<int>(
                       value: _toStageId,
                       isExpanded: true,
+                      dropdownColor: dropdownFill,
                       decoration: const InputDecoration(
                         labelText: 'المرحلة الجديدة (ترحيل إلى)',
                         border: OutlineInputBorder(),
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
-                      style: const TextStyle(fontSize: 14, color: Colors.black, fontFamily: 'Cairo'),
-                      items: lookup.stages.map((s) => DropdownMenuItem(value: s['stage_id'] as int, child: Text(s['stage_name'] as String, style: const TextStyle(fontSize: 14, fontFamily: 'Cairo')))).toList(),
+                      style: TextStyle(fontSize: 14, color: textPrimary, fontFamily: 'Cairo'),
+                      items: lookup.stages.map((s) => DropdownMenuItem(
+                        value: s['stage_id'] as int,
+                        child: Text(
+                          s['stage_name'] as String,
+                          style: TextStyle(fontSize: 14, fontFamily: 'Cairo', color: textPrimary),
+                        ),
+                      )).toList(),
                       onChanged: (val) => setState(() => _toStageId = val),
                     );
 
@@ -251,10 +275,13 @@ class _StagesPromotionScreenState extends State<StagesPromotionScreen> {
                                 return Card(
                                   margin: const EdgeInsets.symmetric(vertical: 4),
                                   child: CheckboxListTile(
-                                    title: Text(person.personName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    title: Text(
+                                      person.personName,
+                                      style: TextStyle(fontWeight: FontWeight.bold, color: textPrimary),
+                                    ),
                                     subtitle: Text(
                                       'الموبايل: ${person.mobile ?? "بدون موبايل"} | الرقم القومي: ${person.rakmKomy ?? "بدون رقم قومي"}',
-                                      style: const TextStyle(fontSize: 13),
+                                      style: TextStyle(fontSize: 13, color: textSecondary),
                                     ),
                                     value: isChecked,
                                     onChanged: (val) {

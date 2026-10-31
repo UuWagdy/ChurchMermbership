@@ -1,4 +1,10 @@
+import 'national_identity.dart';
+
 class Family {
+  final String? birthDate;
+  final String? age;
+  final String? gender;
+  final String? governorate;
   final int? osraId;
   final String osraName;
   final int? karabaId;
@@ -20,6 +26,10 @@ class Family {
   final int memberCount;
 
   Family({
+    this.birthDate,
+    this.age,
+    this.gender,
+    this.governorate,
     this.osraId,
     required this.osraName,
     this.karabaId,
@@ -41,9 +51,13 @@ class Family {
     this.memberCount = 0,
   });
 
-  Map<String, dynamic> toMap() => {
+  Map<String, dynamic> toMap() => NationalIdentity.normalize({
     'osra_id': osraId,
     'osra_name': osraName,
+    'birth_date': birthDate,
+    'age': age,
+    'gender': gender,
+    'governorate': governorate,
     'karaba_id': karabaId,
     'e_s_id': eSId,
     'area_id': areaId,
@@ -60,32 +74,41 @@ class Family {
     'mostwa_id': mostwaId,
     'rakm_komy': rakmKomy,
     'code': code,
-  };
+  })..remove('month');
 
-  factory Family.fromMap(Map<String, dynamic> map) => Family(
-    osraId: map['osra_id'],
-    osraName: map['osra_name'],
-    karabaId: map['karaba_id'],
-    eSId: map['e_s_id'],
-    areaId: map['area_id'],
-    streetId: map['street_id'],
-    dalilName: map['dalil_name'],
-    emara: map['emara'],
-    door: map['door'],
-    shaka: map['shaka'],
-    rO: map['r_o'],
-    phone: map['phone'],
-    number: map['number'] ?? 0,
-    halaEgtimaiaId: map['hala_egtimaia_id'],
-    halaSehiaId: map['hala_sehia_id'],
-    mostwaId: map['mostwa_id'],
-    rakmKomy: map['rakm_komy'],
-    code: map['code'],
-    memberCount: map['member_count'] ?? 0,
-  );
+  factory Family.fromMap(Map<String, dynamic> map) {
+    map = NationalIdentity.normalize(map);
+    return Family(
+      gender: map['gender']?.toString(),
+      governorate: map['governorate']?.toString(),
+      birthDate: map['birth_date']?.toString(),
+      age: map['age']?.toString(),
+      osraId: (map['osra_id'] as num?)?.toInt(),
+      osraName: map['osra_name']?.toString() ?? '',
+      karabaId: (map['karaba_id'] as num?)?.toInt(),
+      eSId: (map['e_s_id'] as num?)?.toInt(),
+      areaId: (map['area_id'] as num?)?.toInt(),
+      streetId: (map['street_id'] as num?)?.toInt(),
+      dalilName: map['dalil_name']?.toString(),
+      emara: map['emara']?.toString(),
+      door: map['door']?.toString(),
+      shaka: map['shaka']?.toString(),
+      rO: map['r_o']?.toString(),
+      phone: map['phone']?.toString(),
+      number: (map['number'] as num?)?.toInt() ?? 0,
+      halaEgtimaiaId: (map['hala_egtimaia_id'] as num?)?.toInt(),
+      halaSehiaId: (map['hala_sehia_id'] as num?)?.toInt(),
+      mostwaId: (map['mostwa_id'] as num?)?.toInt(),
+      rakmKomy: map['rakm_komy']?.toString(),
+      code: (map['code'] as num?)?.toInt(),
+      memberCount: (map['member_count'] as num?)?.toInt() ?? 0,
+    );
+  }
 }
 
 class Person {
+  final String? gender;
+  final String? governorate;
   final int? personId;
   final String personName;
   final int osraId;
@@ -108,6 +131,8 @@ class Person {
   final String? rakmKomy;
 
   Person({
+    this.gender,
+    this.governorate,
     this.personId,
     required this.personName,
     required this.osraId,
@@ -130,9 +155,11 @@ class Person {
     this.rakmKomy,
   });
 
-  Map<String, dynamic> toMap() => {
+  Map<String, dynamic> toMap() => NationalIdentity.normalize({
     'person_id': personId,
     'person_name': personName,
+    'gender': gender,
+    'governorate': governorate,
     'osra_id': osraId,
     'karaba_id': karabaId,
     'birth_date': birthDate,
@@ -151,28 +178,33 @@ class Person {
     'month': month,
     'age': age,
     'rakm_komy': rakmKomy,
-  };
+  });
 
-  factory Person.fromMap(Map<String, dynamic> map) => Person(
-    personId: map['person_id'],
-    personName: map['person_name'],
-    osraId: map['osra_id'],
-    karabaId: map['karaba_id'],
-    birthDate: map['birth_date'],
-    mostwaId: map['mostwa_id'],
-    moahil: map['moahil'],
-    dateMoiahil: map['date_moiahil'],
-    halaEgtimaiaId: map['hala_egtimaia_id'],
-    halaSehiaId: map['hala_sehia_id'],
-    wazefa: map['wazefa'],
-    placeWork: map['place_work'],
-    mobile: map['mobile'],
-    facebook: map['facebook'],
-    father: map['father'],
-    stageId: map['stage_id'],
-    fatherId: map['father_id'],
-    month: map['month'],
-    age: map['age'],
-    rakmKomy: map['rakm_komy'],
-  );
+  factory Person.fromMap(Map<String, dynamic> map) {
+    map = NationalIdentity.normalize(map);
+    return Person(
+      personId: (map['person_id'] as num?)?.toInt(),
+      personName: map['person_name']?.toString() ?? '',
+      gender: map['gender']?.toString(),
+      governorate: map['governorate']?.toString(),
+      osraId: (map['osra_id'] as num?)?.toInt() ?? 0,
+      karabaId: (map['karaba_id'] as num?)?.toInt(),
+      birthDate: map['birth_date']?.toString(),
+      mostwaId: (map['mostwa_id'] as num?)?.toInt(),
+      moahil: map['moahil']?.toString(),
+      dateMoiahil: map['date_moiahil']?.toString(),
+      halaEgtimaiaId: (map['hala_egtimaia_id'] as num?)?.toInt(),
+      halaSehiaId: (map['hala_sehia_id'] as num?)?.toInt(),
+      wazefa: map['wazefa']?.toString(),
+      placeWork: map['place_work']?.toString(),
+      mobile: map['mobile']?.toString(),
+      facebook: map['facebook']?.toString(),
+      father: map['father']?.toString(),
+      stageId: (map['stage_id'] as num?)?.toInt(),
+      fatherId: (map['father_id'] as num?)?.toInt(),
+      month: map['month']?.toString(),
+      age: map['age']?.toString(),
+      rakmKomy: map['rakm_komy']?.toString(),
+    );
+  }
 }

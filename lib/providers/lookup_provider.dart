@@ -27,17 +27,43 @@ class LookupProvider with ChangeNotifier {
   List<Map<String, dynamic>> get stages => _stages;
   List<Map<String, dynamic>> get services => _services;
 
-  Future<void> loadAllLookups() async {
-    _areas = await _lookupRepo.getAreas();
-    _fathers = await _lookupRepo.getFathers();
-    _karaba = await _lookupRepo.getKaraba();
-    _socialStatus = await _lookupRepo.getHalaEgtimaia();
-    _healthStatus = await _lookupRepo.getHalaSehia();
-    _economicStatus = await _lookupRepo.getEconomicStatus();
-    _educationLevels = await _lookupRepo.getEducationLevels();
-    _stages = await _lookupRepo.getStages();
-    _services = await _lookupRepo.getServices();
+  Future<void>? _loadInFlight;
+
+  Future<void> loadAllLookups() =>
+      _loadInFlight ??= _loadLookups().whenComplete(() {
+        _loadInFlight = null;
+      });
+
+  Future<void> _loadLookups() async {
+    final results = await Future.wait([
+      _lookupRepo.getAreas(),
+      _lookupRepo.getFathers(),
+      _lookupRepo.getKaraba(),
+      _lookupRepo.getHalaEgtimaia(),
+      _lookupRepo.getHalaSehia(),
+      _lookupRepo.getEconomicStatus(),
+      _lookupRepo.getEducationLevels(),
+      _lookupRepo.getStages(),
+      _lookupRepo.getServices(),
+    ]);
+    _areas = results[0] as List<Area>;
+    _fathers = results[1] as List<Father>;
+    _karaba = results[2] as List<Map<String, dynamic>>;
+    _socialStatus = results[3] as List<Map<String, dynamic>>;
+    _healthStatus = results[4] as List<Map<String, dynamic>>;
+    _economicStatus = results[5] as List<Map<String, dynamic>>;
+    _educationLevels = results[6] as List<Map<String, dynamic>>;
+    _stages = results[7] as List<Map<String, dynamic>>;
+    _services = results[8] as List<Map<String, dynamic>>;
     notifyListeners();
+  }
+
+  Future<void> refreshSilently() async {
+    try {
+      await loadAllLookups();
+    } catch (e) {
+      debugPrint('Error in LookupProvider.refreshSilently: $e');
+    }
   }
 
   Future<void> loadStreets(int areaId) async {
@@ -74,7 +100,9 @@ class LookupProvider with ChangeNotifier {
   }
 
   Future<void> updateStreet(int id, String name, int areaId) async {
-    await _lookupRepo.updateStreet(Street(streetId: id, streetName: name, areaId: areaId));
+    await _lookupRepo.updateStreet(
+      Street(streetId: id, streetName: name, areaId: areaId),
+    );
     await loadStreets(areaId);
   }
 
@@ -84,7 +112,9 @@ class LookupProvider with ChangeNotifier {
   }
 
   Future<void> addFather(String name, String? mobile, String? birthDate) async {
-    await _lookupRepo.insertFather(Father(fatherName: name, fatherMobile: mobile, birthDate: birthDate));
+    await _lookupRepo.insertFather(
+      Father(fatherName: name, fatherMobile: mobile, birthDate: birthDate),
+    );
     _fathers = await _lookupRepo.getFathers();
     notifyListeners();
   }
@@ -125,12 +155,16 @@ class LookupProvider with ChangeNotifier {
   }
 
   Future<void> updateService(int id, String name) async {
-    await _lookupRepo.updateLookupItem('khdma', 'khdma_id', id, {'khdma_name': name});
+    await _lookupRepo.updateLookupItem('khdma', 'khdma_id', id, {
+      'khdma_name': name,
+    });
     await loadAllLookups();
   }
 
   Future<void> updateStage(int id, String name) async {
-    await _lookupRepo.updateLookupItem('stage', 'stage_id', id, {'stage_name': name});
+    await _lookupRepo.updateLookupItem('stage', 'stage_id', id, {
+      'stage_name': name,
+    });
     await loadAllLookups();
   }
 
@@ -143,7 +177,9 @@ class LookupProvider with ChangeNotifier {
   }
 
   Future<void> updateKaraba(int id, String name) async {
-    await _lookupRepo.updateLookupItem('karaba', 'karaba_id', id, {'karaba_name': name});
+    await _lookupRepo.updateLookupItem('karaba', 'karaba_id', id, {
+      'karaba_name': name,
+    });
     await loadAllLookups();
   }
 
@@ -161,7 +197,12 @@ class LookupProvider with ChangeNotifier {
   }
 
   Future<void> updateSocialStatus(int id, String name) async {
-    await _lookupRepo.updateLookupItem('hala_egtimaia', 'hala_egtimaia_id', id, {'hala_name': name});
+    await _lookupRepo.updateLookupItem(
+      'hala_egtimaia',
+      'hala_egtimaia_id',
+      id,
+      {'hala_name': name},
+    );
     await loadAllLookups();
   }
 
@@ -179,7 +220,9 @@ class LookupProvider with ChangeNotifier {
   }
 
   Future<void> updateHealthStatus(int id, String name) async {
-    await _lookupRepo.updateLookupItem('hala_sehia', 'hala_sehia_id', id, {'hala_name': name});
+    await _lookupRepo.updateLookupItem('hala_sehia', 'hala_sehia_id', id, {
+      'hala_name': name,
+    });
     await loadAllLookups();
   }
 
@@ -215,7 +258,9 @@ class LookupProvider with ChangeNotifier {
   }
 
   Future<void> updateEducationLevel(int id, String name) async {
-    await _lookupRepo.updateLookupItem('mostwa', 'mostwa_id', id, {'mostwa_name': name});
+    await _lookupRepo.updateLookupItem('mostwa', 'mostwa_id', id, {
+      'mostwa_name': name,
+    });
     await loadAllLookups();
   }
 
@@ -224,39 +269,42 @@ class LookupProvider with ChangeNotifier {
     await loadAllLookups();
   }
 
-  String getKarabaName(int? id) {
+  String _nameById(
+    List<Map<String, dynamic>> items,
+    String idKey,
+    String nameKey,
+    int? id,
+  ) {
     if (id == null) return '---';
-    final match = _karaba.firstWhere((k) => k['karaba_id'] == id, orElse: () => {});
-    return match['karaba_name'] ?? '---';
+    for (final item in items) {
+      final raw = item[idKey];
+      final itemId = raw is num ? raw.toInt() : int.tryParse('${raw ?? ''}');
+      if (itemId == id) {
+        final name = item[nameKey]?.toString().trim();
+        return (name == null || name.isEmpty) ? '---' : name;
+      }
+    }
+    return '---';
   }
 
-  String getStageName(int? id) {
-    if (id == null) return '---';
-    final match = _stages.firstWhere((s) => s['stage_id'] == id, orElse: () => {});
-    return match['stage_name'] ?? '---';
-  }
+  String getKarabaName(int? id) =>
+      _nameById(_karaba, 'karaba_id', 'karaba_name', id);
 
-  String getHalaEgtimaiaName(int? id) {
-    if (id == null) return '---';
-    final match = _socialStatus.firstWhere((s) => s['hala_egtimaia_id'] == id, orElse: () => {});
-    return match['hala_name'] ?? '---';
-  }
+  String getStageName(int? id) =>
+      _nameById(_stages, 'stage_id', 'stage_name', id);
 
-  String getHalaSehiaName(int? id) {
-    if (id == null) return '---';
-    final match = _healthStatus.firstWhere((s) => s['hala_sehia_id'] == id, orElse: () => {});
-    return match['hala_name'] ?? '---';
-  }
+  String getHalaEgtimaiaName(int? id) =>
+      _nameById(_socialStatus, 'hala_egtimaia_id', 'hala_name', id);
 
-  String getEconomicStatusName(int? id) {
-    if (id == null) return '---';
-    final match = _economicStatus.firstWhere((s) => s['e_s_id'] == id, orElse: () => {});
-    return match['e_s_name'] ?? '---';
-  }
+  String getHalaSehiaName(int? id) =>
+      _nameById(_healthStatus, 'hala_sehia_id', 'hala_name', id);
 
-  String getEducationLevelName(int? id) {
-    if (id == null) return '---';
-    final match = _educationLevels.firstWhere((s) => s['mostwa_id'] == id, orElse: () => {});
-    return match['mostwa_name'] ?? '---';
-  }
+  String getEconomicStatusName(int? id) =>
+      _nameById(_economicStatus, 'e_s_id', 'e_s_name', id);
+
+  String getEducationLevelName(int? id) =>
+      _nameById(_educationLevels, 'mostwa_id', 'mostwa_name', id);
+
+  String getServiceName(int? id) =>
+      _nameById(_services, 'khdma_id', 'khdma_name', id);
 }

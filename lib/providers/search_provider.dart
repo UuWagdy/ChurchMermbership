@@ -6,11 +6,14 @@ class SearchProvider with ChangeNotifier {
   final SearchRepository _searchRepo = SearchRepository();
   List<Family> _results = [];
   bool _isLoading = false;
+  int _generation = 0;
+  String? error;
 
   List<Family> get results => _results;
   bool get isLoading => _isLoading;
 
   Future<void> performSearch({
+    bool expensesOnly = false,
     List<int>? areaIds,
     int? streetId,
     String? mobile,
@@ -34,11 +37,14 @@ class SearchProvider with ChangeNotifier {
     String? nidBirthDateMin,
     String? nidBirthDateMax,
   }) async {
+    final generation = ++_generation;
+    error = null;
     _isLoading = true;
     notifyListeners();
 
     try {
       final maps = await _searchRepo.complexSearch(
+        expensesOnly: expensesOnly,
         areaIds: areaIds,
         streetId: streetId,
         mobile: mobile,
@@ -62,8 +68,11 @@ class SearchProvider with ChangeNotifier {
         nidBirthDateMin: nidBirthDateMin,
         nidBirthDateMax: nidBirthDateMax,
       );
+      if (generation != _generation) return;
       _results = maps.map((m) => Family.fromMap(m)).toList();
     } catch (e) {
+      if (generation != _generation) return;
+      error = 'تعذر تنفيذ البحث. تحقق من الاتصال وحاول مرة أخرى';
       debugPrint('Search error: $e');
       _results = [];
     }
@@ -73,6 +82,9 @@ class SearchProvider with ChangeNotifier {
   }
 
   void clearResults() {
+    _generation++;
+    _isLoading = false;
+    error = null;
     _results = [];
     notifyListeners();
   }

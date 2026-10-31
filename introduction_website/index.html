@@ -770,6 +770,214 @@
       margin-bottom: 6px;
     }
 
+    /* Sync Guide Section */
+    .sync-guide-section {
+      padding: 90px 0;
+      position: relative;
+    }
+
+    .sync-diagram-card {
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(16, 185, 129, 0.08));
+      border: 1.5px solid var(--border-hover);
+      border-radius: 20px;
+      padding: 32px 24px;
+      margin-bottom: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      gap: 20px;
+      flex-wrap: wrap;
+      text-align: center;
+    }
+
+    .sync-diagram-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      max-width: 280px;
+    }
+
+    .sync-diagram-icon {
+      width: 68px;
+      height: 68px;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    .sync-diagram-icon.server {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff;
+    }
+
+    .sync-diagram-icon.clients {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #fff;
+    }
+
+    .sync-diagram-node h4 {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .sync-diagram-node p {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .sync-diagram-connection {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 0 10px;
+    }
+
+    .sync-connection-badge {
+      background: rgba(37, 99, 235, 0.2);
+      border: 1px solid rgba(37, 99, 235, 0.4);
+      color: #93c5fd;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 13.5px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sync-steps-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      margin-bottom: 35px;
+    }
+
+    @media (max-width: 768px) {
+      .sync-steps-grid {
+        grid-template-columns: 1fr;
+      }
+      .sync-diagram-connection {
+        transform: rotate(90deg);
+        margin: 10px 0;
+      }
+    }
+
+    .sync-step-card {
+      padding: 28px;
+      border-radius: 20px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: var(--transition);
+    }
+
+    .sync-step-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(37, 99, 235, 0.45);
+      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.15);
+    }
+
+    .sync-step-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .sync-step-badge {
+      background: linear-gradient(135deg, var(--primary), #3b82f6);
+      color: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 16px;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    }
+
+    .sync-step-icon {
+      font-size: 24px;
+      color: #60a5fa;
+    }
+
+    .sync-step-title {
+      font-size: 19px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .sync-step-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    .sync-step-highlight {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px dashed rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-family: monospace;
+      font-size: 13px;
+      direction: ltr;
+      text-align: left;
+      color: #38bdf8;
+      display: inline-block;
+      margin-top: 4px;
+    }
+
+    .sync-tips-card {
+      background: rgba(245, 158, 11, 0.05);
+      border: 1.5px solid rgba(245, 158, 11, 0.3);
+      border-radius: 18px;
+      padding: 24px 30px;
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .sync-tips-card i {
+      font-size: 26px;
+      color: var(--accent);
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+
+    .sync-tips-content h4 {
+      font-size: 17px;
+      font-weight: 800;
+      color: #fcd34d;
+      margin-bottom: 8px;
+    }
+
+    .sync-tips-content ul {
+      margin: 0;
+      padding-right: 20px;
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .box-green {
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      background: rgba(16, 185, 129, 0.05);
+      color: var(--text-main);
+    }
+
+    .box-green i {
+      color: #10b981;
+    }
+
     /* 5. Downloads & Credentials Section */
     .downloads-section {
       padding: 100px 0;
@@ -1461,6 +1669,7 @@
         <li><a href="#" class="nav-link">الرئيسية</a></li>
         <li><a href="#features" class="nav-link">المميزات</a></li>
         <li><a href="#explorer" class="nav-link">دليل التبويبات</a></li>
+        <li><a href="#sync-guide" class="nav-link">دليل المزامنة</a></li>
         <li><a href="#download" class="nav-link">التحميل والتشغيل</a></li>
         <li><a href="#developers" class="nav-link">المطورون</a></li>
         <li><a href="https://github.com/UuWagdy/ChurchMermbership" target="_blank" class="nav-link"><i class="fa-brands fa-github"></i> GitHub</a></li>
@@ -1570,6 +1779,12 @@
           <div class="feature-icon"><i class="fa-solid fa-chart-pie"></i></div>
           <h3>البحث المتقدم والتقرير</h3>
           <p>أدوات بحث قوية ومرنة مع إمكانية طباعة تقارير PDF احترافية لبيانات الأسر، أعياد الميلاد، والافتاد المتأخر.</p>
+        </div>
+
+        <div class="feature-card glass">
+          <div class="feature-icon" style="color: #10b981;"><i class="fa-solid fa-arrows-rotate"></i></div>
+          <h3>المزامنة الفورية بين الأجهزة</h3>
+          <p>ربط أجهزة الكمبيوتر وهواتف الأندرويد في نفس الوقت؛ أي إضافة أسرة أو تسجيل افتقاد أو اعتراف يظهر فوراً وفي نفس الثانية عبر SignalR.</p>
         </div>
       </div>
     </div>
@@ -1816,6 +2031,124 @@
     </div>
   </section>
 
+  <!-- Sync & Device Linking Guide Section -->
+  <section class="sync-guide-section" id="sync-guide">
+    <div class="container">
+      <div class="section-title-wrapper">
+        <span class="section-subtitle">✨ ميزة المزامنة الفورية</span>
+        <h2 class="section-title">خطوات ربط الكمبيوتر وهواتف الأندرويد</h2>
+        <p class="section-desc" style="max-width: 700px; margin: 0 auto; color: var(--text-muted); font-size: 15px;">
+          يتيح لك النظام ربط عدة أجهزة (كمبيوتر وموبايل) للعمل على قاعدة بيانات مركزية واحدة، ومزامنة بيانات الأسر والافتقادات والاعترافات والمساعدات لحظياً في نفس الثانية عبر SignalR.
+        </p>
+      </div>
+
+      <!-- Network Architecture Diagram Card -->
+      <div class="sync-diagram-card glass">
+        <div class="sync-diagram-node">
+          <div class="sync-diagram-icon server">
+            <i class="fa-solid fa-server"></i>
+          </div>
+          <h4>الكمبيوتر الرئيسي (السيرفر)</h4>
+          <p>يعمل كمحطة مركزية مع قاعدة بيانات PostgreSQL وسيرفر .NET 8 (منفذ 5060)</p>
+        </div>
+
+        <div class="sync-diagram-connection">
+          <div class="sync-connection-badge">
+            <i class="fa-solid fa-arrows-rotate fa-spin"></i>
+            <span>مزامنة فورية لحظية (SignalR)</span>
+          </div>
+          <span style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">شبكة Wi-Fi واحدة أو نفق Cloudflare</span>
+        </div>
+
+        <div class="sync-diagram-node">
+          <div class="sync-diagram-icon clients">
+            <i class="fa-solid fa-mobile-screen-button"></i>
+          </div>
+          <h4>هواتف الخدام وأجهزة الكمبيوتر الفرعية</h4>
+          <p>تسجيل الأسر، الافتقاد الميداني، الاعترافات، والمساعدات وتحديث السيرفر فوراً</p>
+        </div>
+      </div>
+
+      <!-- Steps Grid -->
+      <div class="sync-steps-grid">
+        <!-- Step 1 -->
+        <div class="sync-step-card glass">
+          <div class="sync-step-top">
+            <span class="sync-step-badge">1</span>
+            <i class="fa-solid fa-display sync-step-icon"></i>
+          </div>
+          <h3 class="sync-step-title">تثبيت وتشغيل كمبيوتر السيرفر</h3>
+          <p class="sync-step-desc">
+            قم بتحميل وتثبيت ملف <strong>ChurchMembership_Setup.exe</strong> على جهاز الكمبيوتر الرئيسي. عند تشغيل البرنامج، سيبدأ خادم المزامنة المركزي (.NET + PostgreSQL) بالعمل تلقائياً في الخلفية على المنفذ <strong>5060</strong>.
+          </p>
+          <div class="sync-step-highlight">
+            <i class="fa-solid fa-network-wired"></i> منفذ الخدمة المحلي: :5060
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="sync-step-card glass">
+          <div class="sync-step-top">
+            <span class="sync-step-badge">2</span>
+            <i class="fa-solid fa-wifi sync-step-icon"></i>
+          </div>
+          <h3 class="sync-step-title">توصيل الأجهزة بنفس الشبكة (Wi-Fi)</h3>
+          <p class="sync-step-desc">
+            تأكد من اتصال الهاتف وأجهزة الكمبيوتر الأخرى بنفس شبكة الواي فاي (أو الراوتر) المتصل به كمبيوتر السيرفر، مع معرفة عنوان IP المحلي لجهاز السيرفر (مثل <code>192.168.1.100</code>) من شاشة إعدادات الاتصال.
+          </p>
+          <div class="sync-step-highlight">
+            <i class="fa-solid fa-location-dot"></i> مثال لعنوان السيرفر: http://192.168.1.100:5060
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="sync-step-card glass">
+          <div class="sync-step-top">
+            <span class="sync-step-badge">3</span>
+            <i class="fa-solid fa-sliders sync-step-icon"></i>
+          </div>
+          <h3 class="sync-step-title">ضبط إعدادات السيرفر على الهاتف</h3>
+          <p class="sync-step-desc">
+            افتح التطبيق على هاتف الأندرويد، واضغط على زر <strong>"إعدادات الاتصال والسيرفر"</strong> 🌐 في أعلى شاشة تسجيل الدخول. اختر وضع <strong>"سيرفر مركزي (.NET + PostgreSQL)"</strong>، ثم أدخل عنوان السيرفر.
+          </p>
+          <div class="sync-step-highlight">
+            <i class="fa-solid fa-link"></i> وضع التشغيل: سيرفر مركزي (Server Mode)
+          </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="sync-step-card glass">
+          <div class="sync-step-top">
+            <span class="sync-step-badge">4</span>
+            <i class="fa-solid fa-bolt-lightning sync-step-icon"></i>
+          </div>
+          <h3 class="sync-step-title">اختبار الاتصال وبدء الخدمة</h3>
+          <p class="sync-step-desc">
+            اضغط على زر <strong>"اختبار الاتصال"</strong> للتأكد من ظهور المؤشر الأخضر، ثم اضغط <strong>"حفظ وتوصيل"</strong> وسجّل الدخول بحسابك. الآن أي تسجيل افتقاد أو أسرة جديدة على الهاتف يظهر لحظياً على شاشة الكمبيوتر!
+          </p>
+          <div class="sync-step-highlight" style="color: #4ade80;">
+            <i class="fa-solid fa-circle-check"></i> حالة الربط: متصل بالسيرفر (SignalR)
+          </div>
+        </div>
+      </div>
+
+      <!-- Sync Tips & Troubleshooting Card -->
+      <div class="sync-tips-card glass">
+        <i class="fa-solid fa-lightbulb"></i>
+        <div class="sync-tips-content">
+          <h4>إرشادات ونصائح هامة لضمان ربط سلس ومستقر:</h4>
+          <ul>
+            <li><strong>جدار حماية ويندوز (Windows Firewall):</strong> عند تشغيل البرنامج لأول مرة على الكمبيوتر، تأكد من الموافقة على التنبيه الأمني للسماح بمرور حركة البيانات عبر المنفذ 5060 في الشبكة المحلية (Private Networks).</li>
+            <li><strong>إعدادات الراوتر:</strong> تأكد من تعطيل خاصية "عزل الأجهزة" (AP Isolation / Client Isolation) في راوتر الكنيسة لتسمح للهواتف بالتواصل مع الكمبيوتر.</li>
+            <li><strong>رفع البيانات القديمة:</strong> إذا كانت لديك بيانات سابقة على الكمبيوتر وترغب بمشاركتها مع الهواتف، افتح شاشة الاتصال واضغط "رفع قاعدة البيانات المحلية إلى PostgreSQL" لتُرفع كل السجلات فوراً.</li>
+            <li><strong>المزامنة عن بُعد (عبر الإنترنت):</strong> يمكنك أيضاً استخدام نفق مشفر مثل Cloudflare Tunnel لربط الهواتف بالسيرفر حتى أثناء تواجد الآباء الكهنة أو الخدام في منازلهم.</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
   <!-- 5. Downloads & Credentials Section -->
   <section class="downloads-section" id="download">
     <div class="container">
@@ -1855,21 +2188,21 @@
         <!-- Windows Download Card -->
         <div class="download-card windows glass">
           <i class="fa-brands fa-windows platform-icon"></i>
-          <h3>نسخة الكمبيوتر (Windows)</h3>
-          <p>نسخة متكاملة ومحسنة للعمل على أجهزة الكمبيوتر والمكتب. تدعم تشغيل الأجهزة الطرفية كالطابعات وقارئ الباركود بكل سلاسة.</p>
-          <a href="https://www.mediafire.com/file/ekds566hi1f3nwo/Church_Membership.rar/file" class="btn btn-primary" target="_blank"><i class="fa-solid fa-file-zipper"></i> تنزيل لـ Windows (.rar)</a>
+          <h3>نسخة أجهزة الكمبيوتر (Windows Setup)</h3>
+          <p>المثبت الرسمي الشامل (ChurchMembership_Setup.exe). مدمج به خادم المزامنة وقاعدة البيانات بالكامل، لوحة تحكم الخادم، طباعة التقارير، وتصميم الكروت وإدارة المستخدمين.</p>
+          <a href="https://www.mediafire.com/file/qwys3rooj7t2sio/ChurchMembership_Setup.exe/file" class="btn btn-primary" target="_blank"><i class="fa-solid fa-download"></i> تنزيل مثبت الكمبيوتر (.exe)</a>
         </div>
 
         <!-- Android Download Card -->
         <div class="download-card android glass">
           <i class="fa-brands fa-android platform-icon"></i>
-          <h3>نسخة الموبايل (Android)</h3>
-          <p>تابع قاعدة البيانات وافتقد الأسر وسجل بيانات الاعترافات مباشرة أثناء حركتك وتجوالك الميداني بكل مرونة وسهولة.</p>
-          <a href="https://www.mediafire.com/file/plwgp1hj0fwtjax/Church_Membership.apk/file" class="btn btn-accent" target="_blank"><i class="fa-solid fa-file-apk"></i> تنزيل للأندرويد (APK)</a>
+          <h3>نسخة الهواتف الذكية (Android)</h3>
+          <p>تطبيق الهاتف المحدث لمتابعة الأسر وتسجيل الافتقاد والاعترافات مباشرة، مع ميزة المزامنة اللحظية الفورية مع كمبيوتر السيرفر عبر SignalR.</p>
+          <a href="https://www.mediafire.com/file/plh51qybne20q0t/ChurchMembership_Android.apk/file" class="btn btn-accent" target="_blank"><i class="fa-solid fa-android"></i> تنزيل للأندرويد (.apk)</a>
         </div>
       </div>
 
-      <!-- Info Boxes (GitHub & Prerequisites) -->
+      <!-- Info Boxes (GitHub & Modern Setup Announcement) -->
       <div class="info-boxes">
         <!-- Open Source Block (Blue) -->
         <div class="info-box box-blue">
@@ -1882,15 +2215,14 @@
           </div>
         </div>
 
-        <!-- Prerequisites Block (Red) -->
-        <div class="info-box box-red">
-          <i class="fa-solid fa-circle-exclamation"></i>
+        <!-- Modern Setup Announcement Block (Green) -->
+        <div class="info-box box-green">
+          <i class="fa-solid fa-circle-check"></i>
           <div class="info-box-text">
-            <h4>متطلبات تشغيل الويندوز (هام جداً)</h4>
-            <p style="margin-bottom: 10px;">
-              <strong>خطوة إجبارية لويندوز:</strong> يجب تنزيل وتثبيت حزمة التشغيل المرفقة بالزر أدناه <strong>قبل تشغيل البرنامج</strong> لكي تعمل قاعدة البيانات والبرنامج بنجاح وبدون مشاكل:
+            <h4 style="color: #6ee7b7;">تثبيت تلقائي ذكي ومباشر (Setup.exe)</h4>
+            <p>
+              النسخة الجديدة للكمبيوتر تأتي بمثبت ذكي شامل يثبت البرنامج وسيرفر المزامنة تلقائياً بضغطة زر واحدة دون الحاجة لأي ملفات مساعدة خارجية.
             </p>
-            <a href="https://www.mediafire.com/file/ggfvkdy8vc9et2b/%25D9%258A%25D8%25AC%25D8%25A8_%25D8%25A7%25D9%2584%25D8%25AA%25D9%2586%25D8%25B2%25D9%258A%25D9%2584_%25D9%2582%25D8%25A8%25D9%2584_%25D8%25AA%25D8%25B4%25D8%25BA%25D9%258A%25D9%2584_%25D8%25A7%25D9%2584%25D8%25A8%25D8%25B1%25D9%2586%25D8%25A7%25D9%2585%25D8%25AC.rar/file" class="btn btn-secondary" style="background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: white; padding: 8px 16px; font-size: 13px;" target="_blank"><i class="fa-solid fa-download"></i> تنزيل حزمة المتطلبات (يجب تثبيتها أولاً)</a>
           </div>
         </div>
       </div>
@@ -1950,6 +2282,7 @@
             <li><a href="#">الرئيسية</a></li>
             <li><a href="#features">المميزات</a></li>
             <li><a href="#explorer">دليل التبويبات</a></li>
+            <li><a href="#sync-guide">دليل المزامنة</a></li>
             <li><a href="#download">التحميل والتشغيل</a></li>
           </ul>
         </div>

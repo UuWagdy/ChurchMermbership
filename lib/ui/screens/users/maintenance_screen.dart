@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../data/services/backup_service.dart';
+import '../../widgets/backup_settings_card.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../providers/family_provider.dart';
+import '../../../providers/financial_provider.dart';
+import '../../../providers/lookup_provider.dart';
+import '../../../providers/settings_provider.dart';
+import '../../../providers/tracking_provider.dart';
 
 class MaintenanceScreen extends StatefulWidget {
   const MaintenanceScreen({super.key});
@@ -11,6 +19,18 @@ class MaintenanceScreen extends StatefulWidget {
 class _MaintenanceScreenState extends State<MaintenanceScreen> {
   final BackupService _backupService = BackupService();
   bool _isLoading = false;
+
+  void _refreshAllProviders() {
+    if (!mounted) return;
+    try {
+      context.read<LookupProvider>().refreshSilently();
+      context.read<FamilyProvider>().refreshSilently();
+      context.read<TrackingProvider>().refreshSilently();
+      context.read<FinancialProvider>().refreshSilently();
+      context.read<AuthProvider>().refreshSilently();
+      context.read<SettingsProvider>().refreshSilently();
+    } catch (_) {}
+  }
 
   Future<void> _performBackup() async {
     setState(() => _isLoading = true);
@@ -51,7 +71,10 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
           'يُنصح بعمل نسخة احتياطية أولاً قبل الاستعادة.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('استعادة', style: TextStyle(color: Colors.red)),
@@ -66,9 +89,10 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
     try {
       final success = await _backupService.restoreDatabase();
       if (success && mounted) {
+        _refreshAllProviders();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('تم استعادة البيانات بنجاح! يُنصح بإعادة تشغيل التطبيق.'),
+            content: Text('تم استعادة البيانات وتحديث الشاشات بنجاح!'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 5),
           ),
@@ -106,25 +130,36 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
           'هذا الإجراء لا يمكن التراجع عنه!',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('حذف كل البيانات', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'حذف كل البيانات',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
     // Second confirmation
     final doubleConfirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('تأكيد نهائي'),
-        content: const Text('هل أنت متأكد تماماً؟ سيتم حذف كل البيانات نهائياً!'),
+        content: const Text(
+          'هل أنت متأكد تماماً؟ سيتم حذف كل البيانات نهائياً!',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('لا، تراجع')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('لا، تراجع'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('نعم، احذف', style: TextStyle(color: Colors.red)),
@@ -139,9 +174,10 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
     try {
       await _backupService.factoryReset();
       if (mounted) {
+        _refreshAllProviders();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('تم ضبط المصنع بنجاح! يُنصح بإعادة تشغيل التطبيق.'),
+            content: Text('تم ضبط المصنع وتحديث البيانات بنجاح!'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 5),
           ),
@@ -177,7 +213,9 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -196,18 +234,21 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'إدارة النسخ الاحتياطي واستعادة البيانات',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 40),
 
+                  BackupSettingsCard(service: BackupService.automatic),
+                  const SizedBox(height: 20),
                   // Backup Card
                   _MaintenanceCard(
                     icon: Icons.backup,
                     iconColor: Colors.blue,
                     title: 'نسخ احتياطي',
-                    description: 'حفظ نسخة من قاعدة البيانات الحالية في ملف .db',
+                    description:
+                        'حفظ SQLite في الوضع المحلي أو PostgreSQL بصيغة .dump في وضع السيرفر',
                     buttonText: 'حفظ نسخة احتياطية',
                     buttonColor: Colors.blue,
                     onPressed: _isLoading ? null : _performBackup,
@@ -220,7 +261,8 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
                     icon: Icons.restore,
                     iconColor: Colors.orange,
                     title: 'استعادة البيانات',
-                    description: 'استعادة قاعدة البيانات من ملف .db سابق',
+                    description:
+                        'استعادة نسخة SQLite أو PostgreSQL حسب وضع الاتصال',
                     buttonText: 'استعادة من نسخة احتياطية',
                     buttonColor: Colors.orange,
                     onPressed: _isLoading ? null : _performRestore,
@@ -233,7 +275,8 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
                     icon: Icons.delete_forever,
                     iconColor: Colors.red,
                     title: 'ضبط المصنع',
-                    description: 'حذف جميع البيانات ماعدا المستخدمين وصلاحياتهم',
+                    description:
+                        'حذف جميع البيانات ماعدا المستخدمين وصلاحياتهم',
                     buttonText: 'ضبط المصنع',
                     buttonColor: Colors.red,
                     onPressed: _isLoading ? null : _performFactoryReset,
@@ -247,11 +290,17 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
                     decoration: BoxDecoration(
                       color: Colors.amber.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                      border: Border.all(
+                        color: Colors.amber.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.info_outline, color: Colors.amber, size: 28),
+                        const Icon(
+                          Icons.info_outline,
+                          color: Colors.amber,
+                          size: 28,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -338,9 +387,8 @@ class _MaintenanceCard extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -365,7 +413,9 @@ class _MaintenanceCard extends StatelessWidget {
                   backgroundColor: buttonColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),

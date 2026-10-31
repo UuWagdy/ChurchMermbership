@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../providers/family_provider.dart';
 import '../../../providers/lookup_provider.dart';
 import '../../../data/models/family_models.dart';
-import '../../../data/models/lookup_models.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 class FamilyListScreen extends StatefulWidget {
   const FamilyListScreen({super.key});
@@ -166,6 +166,8 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
         title: const Text('إدارة الأسر'),
         elevation: 0,
         actions: [
+          const ThemeToggleButton(),
+          const SizedBox(width: 4),
           IconButton(
             icon: Icon(_filtersVisible ? Icons.filter_alt : Icons.filter_alt_outlined),
             onPressed: () {
@@ -479,41 +481,55 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
               ),
               const SizedBox(height: 16),
               // ═══ National ID Filters Section ═══
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.teal.shade50, Colors.cyan.shade50],
-                    begin: Alignment.topRight,
-                    end: Alignment.bottomLeft,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.teal.shade200),
-                ),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.teal.shade100,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(Icons.badge, color: Colors.teal.shade700, size: 20),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          'الناتج من الرقم القومي',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: Colors.teal.shade800,
-                          ),
-                        ),
-                      ],
+              Builder(
+                builder: (context) {
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : null,
+                      gradient: isDark
+                          ? null
+                          : LinearGradient(
+                              colors: [Colors.teal.shade50, Colors.cyan.shade50],
+                              begin: Alignment.topRight,
+                              end: Alignment.bottomLeft,
+                            ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF0D9488) : Colors.teal.shade200,
+                      ),
                     ),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF0F766E).withValues(alpha: 0.3)
+                                    : Colors.teal.shade100,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                Icons.badge,
+                                color: isDark ? const Color(0xFF5EEAD4) : Colors.teal.shade700,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'الناتج من الرقم القومي',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: isDark ? const Color(0xFFF0FDFA) : Colors.teal.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 12.0,
@@ -590,7 +606,7 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
                                     _nidBirthDateMin == null
                                       ? 'اختر التاريخ'
                                       : _nidBirthDateMin!.toIso8601String().split('T')[0],
-                                    style: TextStyle(fontSize: 14, color: _nidBirthDateMin == null ? Colors.grey : Colors.black),
+                                    style: TextStyle(fontSize: 14, color: _nidBirthDateMin == null ? Colors.grey : (isDark ? Colors.white : Colors.black)),
                                   ),
                                   const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
                                 ],
@@ -624,7 +640,7 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
                                     _nidBirthDateMax == null
                                       ? 'اختر التاريخ'
                                       : _nidBirthDateMax!.toIso8601String().split('T')[0],
-                                    style: TextStyle(fontSize: 14, color: _nidBirthDateMax == null ? Colors.grey : Colors.black),
+                                    style: TextStyle(fontSize: 14, color: _nidBirthDateMax == null ? Colors.grey : (isDark ? Colors.white : Colors.black)),
                                   ),
                                   const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
                                 ],
@@ -636,7 +652,9 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
                     ),
                   ],
                 ),
-              ),
+              );
+            },
+          ),
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -785,21 +803,26 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
   }
 
   Widget _buildInfoChip(IconData icon, String label, MaterialColor color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.shade50,
+        color: isDark ? color.withValues(alpha: 0.25) : color.shade50,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.shade200),
+        border: Border.all(color: isDark ? color.shade400 : color.shade200),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: color.shade700),
+          Icon(icon, size: 16, color: isDark ? color.shade300 : color.shade700),
           const SizedBox(width: 6),
           Text(
             label,
-            style: TextStyle(fontSize: 13, color: color.shade900, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.white : color.shade900,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

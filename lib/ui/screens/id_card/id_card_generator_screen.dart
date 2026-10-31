@@ -7,8 +7,8 @@ import '../../../providers/search_provider.dart';
 import '../../../providers/lookup_provider.dart';
 import '../../../providers/settings_provider.dart';
 import '../../../data/models/family_models.dart';
-import '../../../data/models/lookup_models.dart';
 import '../../../data/services/id_card_pdf_service.dart';
+import '../../widgets/theme_toggle_button.dart';
 import 'id_card_settings_dialog.dart';
 
 class IdCardGeneratorScreen extends StatefulWidget {
@@ -356,6 +356,7 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
         title: const Text('طباعة الكارنيهات', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
+          const ThemeToggleButton(),
           if (isMobile)
             IconButton(
               icon: Icon(_showFiltersOnMobile ? Icons.filter_list_off : Icons.filter_list),
@@ -392,12 +393,13 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
   // DESKTOP LAYOUT (side-by-side)
   // ═══════════════════════════════════════════
   Widget _buildDesktopLayout(LookupProvider lookup, bool isAllSelected) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       children: [
         // Left Side: Filters
         Container(
           width: 280,
-          color: Colors.grey.shade50,
+          color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade50,
           child: Column(
             children: [
               Expanded(child: _buildFiltersList(lookup)),
@@ -405,13 +407,13 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
             ],
           ),
         ),
-        const VerticalDivider(width: 1, thickness: 1),
+        VerticalDivider(width: 1, thickness: 1, color: isDark ? const Color(0xFF334155) : Colors.grey.shade300),
         // Right Side: Results & Multi-select
         Expanded(
           child: Column(
             children: [
               _buildToolbar(isAllSelected, showPrintButton: true),
-              const Divider(height: 1, thickness: 1),
+              Divider(height: 1, thickness: 1, color: isDark ? const Color(0xFF334155) : Colors.grey.shade300),
               Expanded(child: _buildResultsList(lookup)),
             ],
           ),
@@ -424,6 +426,7 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
   // MOBILE LAYOUT (stacked, filters in drawer)
   // ═══════════════════════════════════════════
   Widget _buildMobileLayout(LookupProvider lookup, bool isAllSelected) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
         // Collapsible Filter Section
@@ -431,8 +434,8 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
           Container(
             constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.45),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+              color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade50,
+              border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF334155) : Colors.grey.shade300)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -443,7 +446,7 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
             ),
           ),
         _buildToolbar(isAllSelected, showPrintButton: false),
-        const Divider(height: 1, thickness: 1),
+        Divider(height: 1, thickness: 1, color: isDark ? const Color(0xFF334155) : Colors.grey.shade300),
         Expanded(child: _buildResultsList(lookup)),
       ],
     );
@@ -454,13 +457,18 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
   // ═══════════════════════════════════════════
 
   Widget _buildFiltersList(LookupProvider lookup) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ListView(
       padding: const EdgeInsets.all(12),
       shrinkWrap: true,
       children: [
-        const Text(
+        Text(
           'بحث شامل عن الأشخاص',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigo),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: isDark ? const Color(0xFF818CF8) : Colors.indigo,
+          ),
         ),
         const SizedBox(height: 12),
         _buildTextField('الاسم', _nameController, Icons.person),
@@ -512,9 +520,10 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
   }
 
   Widget _buildToolbar(bool isAllSelected, {required bool showPrintButton}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      color: Colors.white,
+      color: isDark ? const Color(0xFF0F172A) : Colors.white,
       child: Row(
         children: [
           Checkbox(
@@ -524,7 +533,11 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
           Expanded(
             child: Text(
               'الكل (${_searchResults.length}) | تم تحديد: ${_selectedPersonIds.length}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: isDark ? const Color(0xFFF8FAFC) : Colors.black87,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -544,14 +557,15 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
   }
 
   Widget _buildResultsList(LookupProvider lookup) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
     if (_searchResults.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
           'لا توجد نتائج. استخدم الفلاتر للبحث.',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
+          style: TextStyle(fontSize: 16, color: isDark ? const Color(0xFF94A3B8) : Colors.grey),
           textAlign: TextAlign.center,
         ),
       );
@@ -567,16 +581,25 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
           child: CheckboxListTile(
             value: isSelected,
             onChanged: (val) => _togglePersonSelection(person.personId!, val),
-            title: Text(person.personName, style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(
+              person.personName,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDark ? const Color(0xFFF8FAFC) : Colors.black87,
+              ),
+            ),
             subtitle: Text(
               'المرحلة: ${lookup.getStageName(person.stageId)} | الوظيفة: ${person.wazefa ?? "---"}',
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+              style: TextStyle(
+                color: isDark ? const Color(0xFFCBD5E1) : Colors.grey.shade700,
+                fontSize: 12,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             secondary: CircleAvatar(
-              backgroundColor: Colors.indigo.shade50,
-              child: const Icon(Icons.person, color: Colors.indigo),
+              backgroundColor: isDark ? Colors.indigo.shade900.withValues(alpha: 0.5) : Colors.indigo.shade50,
+              child: Icon(Icons.person, color: isDark ? const Color(0xFF818CF8) : Colors.indigo),
             ),
           ),
         );
@@ -601,6 +624,7 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: DropdownButtonFormField<T>(
+        dropdownColor: Theme.of(context).cardColor,
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),

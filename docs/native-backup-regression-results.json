@@ -1,0 +1,24 @@
+[
+  {
+    "project": "SundaySchool",
+    "native_dump": true,
+    "restored_to_empty_database": true,
+    "arabic_blob_sequence_preserved": true,
+    "restore_endpoint": true,
+    "invalid_restore_rollback": true,
+    "retention": true,
+    "independent_schedule": true,
+    "unauthenticated_denied": true
+  },
+  {
+    "project": "ChurchMembership",
+    "native_dump": true,
+    "restored_to_empty_database": true,
+    "arabic_blob_sequence_preserved": true,
+    "restore_endpoint": true,
+    "invalid_restore_rollback": true,
+    "retention": true,
+    "independent_schedule": true,
+    "unauthenticated_denied": true
+  }
+]

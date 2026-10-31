@@ -1,3 +1,4 @@
+import '../../widgets/search_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/tracking_provider.dart';
@@ -17,36 +18,68 @@ class _ConfessionScreenState extends State<ConfessionScreen> {
   int? _selectedPersonId;
   final _notesController = TextEditingController();
   List<Person> _allPersons = [];
+  final Map<int, String> _familyNames = {};
+  bool _loadingPersons = true;
+  String? _loadError;
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadAllPersons();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadAllPersons();
+    });
   }
 
   Future<void> _loadAllPersons() async {
-    final familyProvider = Provider.of<FamilyProvider>(context, listen: false);
-    await familyProvider.loadFamilies();
-    List<Person> all = [];
-    for (var family in familyProvider.families) {
-      final p = await familyProvider.getPersons(family.osraId!);
-      all.addAll(p);
+    try {
+      final familyProvider = context.read<FamilyProvider>();
+      final persons = await familyProvider.getAllPersons();
+      await familyProvider.loadFamilies();
+      if (familyProvider.error != null) throw StateError(familyProvider.error!);
+      final families = List<Family>.from(familyProvider.families);
+      if (!mounted) return;
+      setState(() {
+        _allPersons = persons;
+        for (final f in families) {
+          _familyNames[f.osraId!] = f.osraName;
+        }
+        _loadingPersons = false;
+        _loadError = null;
+      });
+    } catch (_) {
+      if (mounted)
+        setState(() {
+          _loadingPersons = false;
+          _loadError = 'تعذر تحميل الأسر والأفراد';
+        });
     }
-    setState(() => _allPersons = all);
   }
 
   void _addConfession() async {
     if (_selectedPersonId == null || _notesController.text.isEmpty) return;
-    await Provider.of<TrackingProvider>(context, listen: false)
-        .addConfession(_selectedPersonId!, _notesController.text);
+    await Provider.of<TrackingProvider>(
+      context,
+      listen: false,
+    ).addConfession(_selectedPersonId!, _notesController.text);
     _notesController.clear();
   }
 
   void _printConfessions() async {
-    final trackingProvider = Provider.of<TrackingProvider>(context, listen: false);
+    final trackingProvider = Provider.of<TrackingProvider>(
+      context,
+      listen: false,
+    );
     if (trackingProvider.confessions.isEmpty) return;
 
-    final personName = _allPersons.firstWhere((p) => p.personId == _selectedPersonId).personName;
+    final personName = _allPersons
+        .firstWhere((p) => p.personId == _selectedPersonId)
+        .personName;
 
     final headers = ['م', 'التاريخ', 'ملاحظات الاعتراف'];
     final data = trackingProvider.confessions.asMap().entries.map((e) {
@@ -94,11 +127,17 @@ class _ConfessionScreenState extends State<ConfessionScreen> {
                   date: confession.date,
                   notes: editController.text,
                 );
-                await Provider.of<TrackingProvider>(context, listen: false).updateConfession(updated);
+                await Provider.of<TrackingProvider>(
+                  context,
+                  listen: false,
+                ).updateConfession(updated);
                 if (mounted) Navigator.pop(ctx);
               }
             },
-            child: const Text('حفظ التعديل', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'حفظ التعديل',
+              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -110,7 +149,9 @@ class _ConfessionScreenState extends State<ConfessionScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('حذف سجل الاعتراف'),
-        content: const Text('هل أنت متأكد من حذف سجل الاعتراف هذا بشكل نهائي؟\nلا يمكن التراجع عن هذا الإجراء.'),
+        content: const Text(
+          'هل أنت متأكد من حذف سجل الاعتراف هذا بشكل نهائي؟\nلا يمكن التراجع عن هذا الإجراء.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -118,10 +159,16 @@ class _ConfessionScreenState extends State<ConfessionScreen> {
           ),
           TextButton(
             onPressed: () async {
-              await Provider.of<TrackingProvider>(context, listen: false).deleteConfession(confession.eatrafId!, confession.personId);
+              await Provider.of<TrackingProvider>(
+                context,
+                listen: false,
+              ).deleteConfession(confession.eatrafId!, confession.personId);
               if (mounted) Navigator.pop(ctx);
             },
-            child: const Text('حذف', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'حذف',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -136,47 +183,48 @@ class _ConfessionScreenState extends State<ConfessionScreen> {
       appBar: AppBar(title: const Text('سجل الاعتراف')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
+        child: ListView(
           children: [
+            if (_loadingPersons) const LinearProgressIndicator(),
+            if (_loadError != null)
+              TextButton(
+                onPressed: _loadAllPersons,
+                child: Text('$_loadError — إعادة المحاولة'),
+              ),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
-                 child: Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Row(
                       children: [
                         Icon(Icons.church, color: Colors.deepPurple.shade700),
                         const SizedBox(width: 8),
-                        const Text('تسجيل اعتراف جديد', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const Text(
+                          'تسجيل اعتراف جديد',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                     const Divider(height: 24),
                     LayoutBuilder(
                       builder: (context, constraints) {
                         final isDesktop = constraints.maxWidth > 550;
-                        
-                        final searchField = Autocomplete<Person>(
-                          displayStringForOption: (p) => p.personName,
-                          optionsBuilder: (TextEditingValue textEditingValue) {
-                            if (textEditingValue.text == '') return const Iterable<Person>.empty();
-                            return _allPersons.where((p) => p.personName.contains(textEditingValue.text));
-                          },
+
+                        final searchField = SearchPicker<Person>(
+                          options: _allPersons,
+                          label: (p) =>
+                              '${p.personName} — ${_familyNames[p.osraId] ?? ''}',
+                          hint: 'ابحث عن الشخص أو الأسرة بالاسم',
+                          onCleared: () =>
+                              setState(() => _selectedPersonId = null),
                           onSelected: (p) {
                             setState(() => _selectedPersonId = p.personId);
                             trackingProvider.loadConfessions(p.personId!);
-                          },
-                          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                            return TextField(
-                              controller: controller,
-                              focusNode: focusNode,
-                              decoration: const InputDecoration(
-                                labelText: 'ابحث عن الشخص بالاسم',
-                                prefixIcon: Icon(Icons.person_search),
-                                border: OutlineInputBorder(),
-                                isDense: true,
-                              ),
-                            );
                           },
                         );
 
@@ -197,21 +245,31 @@ class _ConfessionScreenState extends State<ConfessionScreen> {
                           alignment: WrapAlignment.end,
                           children: [
                             ElevatedButton.icon(
-                              onPressed: _selectedPersonId == null ? null : _addConfession,
+                              onPressed: _selectedPersonId == null
+                                  ? null
+                                  : _addConfession,
                               icon: const Icon(Icons.add_task),
                               label: const Text('تسجيل اعتراف'),
                               style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                  horizontal: 20,
+                                ),
                                 backgroundColor: Colors.deepPurple.shade700,
                                 foregroundColor: Colors.white,
                               ),
                             ),
                             ElevatedButton.icon(
-                              onPressed: trackingProvider.confessions.isEmpty ? null : _printConfessions,
+                              onPressed: trackingProvider.confessions.isEmpty
+                                  ? null
+                                  : _printConfessions,
                               icon: const Icon(Icons.picture_as_pdf),
                               label: const Text('طباعة السجل'),
                               style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                  horizontal: 20,
+                                ),
                                 backgroundColor: Colors.red.shade600,
                                 foregroundColor: Colors.white,
                               ),
@@ -249,40 +307,58 @@ class _ConfessionScreenState extends State<ConfessionScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            Expanded(
+            SizedBox(
               child: trackingProvider.isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _selectedPersonId == null
-                      ? const Center(child: Text('ابحث عن شخص لعرض سجل الاعترافات'))
-                      : ListView.builder(
-                          itemCount: trackingProvider.confessions.length,
-                          itemBuilder: (context, index) {
-                            final confession = trackingProvider.confessions[index];
-                            return Card(
-                              margin: const EdgeInsets.symmetric(vertical: 4),
-                              child: ListTile(
-                                leading: const Icon(Icons.church, color: Colors.deepPurple),
-                                title: Text(confession.date.split('T')[0], style: const TextStyle(fontWeight: FontWeight.bold)),
-                                subtitle: Text(confession.notes ?? 'بدون ملاحظات'),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.edit, color: Colors.blue),
-                                      onPressed: () => _editConfessionDialog(confession),
-                                      tooltip: 'تعديل',
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete, color: Colors.red),
-                                      onPressed: () => _deleteConfessionDialog(confession),
-                                      tooltip: 'حذف',
-                                    ),
-                                  ],
-                                ),
+                  ? const Center(child: Text('ابحث عن شخص لعرض سجل الاعترافات'))
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: trackingProvider.confessions.length,
+                      itemBuilder: (context, index) {
+                        final confession = trackingProvider.confessions[index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          child: ListTile(
+                            leading: const Icon(
+                              Icons.church,
+                              color: Colors.deepPurple,
+                            ),
+                            title: Text(
+                              confession.date.split('T')[0],
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                            subtitle: Text(confession.notes ?? 'بدون ملاحظات'),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: Colors.blue,
+                                  ),
+                                  onPressed: () =>
+                                      _editConfessionDialog(confession),
+                                  tooltip: 'تعديل',
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () =>
+                                      _deleteConfessionDialog(confession),
+                                  tooltip: 'حذف',
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),

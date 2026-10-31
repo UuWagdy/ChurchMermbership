@@ -52,3 +52,20 @@ serviceAccountKey.json
 # OS files
 .DS_Store
 Thumbs.db
+
+# The bundled membership database is application seed data.
+!assets/database/church_membership.db
+
+# Logs
+*.log
+
+# .NET compilation artifacts
+**/bin/
+**/obj/
+**/publish/
+
+# Installer generated binaries and downloaded prerequisites
+installer/output/
+installer/Output/
+installer/downloads/
+installer/payload/

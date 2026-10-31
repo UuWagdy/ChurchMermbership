@@ -58,6 +58,19 @@ class TrackingRepository {
     return await db.delete('visits', where: 'visit_id = ?', whereArgs: [id]);
   }
 
+  Future<void> addBatchVisits(List<int> osraIds, String date, String notes) async {
+    final db = await _dbHelper.database;
+    final batch = db.batch();
+    for (final id in osraIds) {
+      batch.insert('visits', {
+        'osra_id': id,
+        'date': date,
+        'notes': notes,
+      });
+    }
+    await batch.commit(noResult: true);
+  }
+
   // Occasions (Monasba)
   Future<List<Occasion>> getOccasionsByFamily(int osraId) async {
     final db = await _dbHelper.database;

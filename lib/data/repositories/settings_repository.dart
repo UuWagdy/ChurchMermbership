@@ -35,4 +35,18 @@ class SettingsRepository {
       whereArgs: [key],
     );
   }
+
+  Future<Map<String, String>> getAllSettings() async {
+    final db = await _dbHelper.database;
+    final List<Map<String, dynamic>> maps = await db.query('settings');
+    final result = <String, String>{};
+    for (var m in maps) {
+      final k = m['setting_key']?.toString();
+      final v = m['setting_value']?.toString();
+      if (k != null && v != null) {
+        result[k] = v;
+      }
+    }
+    return result;
+  }
 }

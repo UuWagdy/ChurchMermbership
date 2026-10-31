@@ -9,20 +9,67 @@ class FinancialProvider with ChangeNotifier {
   List<VariableAid> _variableAids = [];
   List<Expense> _expenses = [];
   bool _isLoading = false;
+  int? _lastFamilyId;
+  int _generation = 0;
+  String? _error;
+  String? get error => _error;
 
   List<FixedAid> get fixedAids => _fixedAids;
   List<VariableAid> get variableAids => _variableAids;
   List<Expense> get expenses => _expenses;
   bool get isLoading => _isLoading;
+  int? get lastFamilyId => _lastFamilyId;
 
   Future<void> loadFinancials(int osraId) async {
+    final generation = ++_generation;
+    _lastFamilyId = osraId;
     _isLoading = true;
+    _error = null;
+    _fixedAids = [];
+    _variableAids = [];
+    _expenses = [];
     notifyListeners();
-    _fixedAids = await _financialRepo.getFixedAidByFamily(osraId);
-    _variableAids = await _financialRepo.getVariableAidByFamily(osraId);
-    _expenses = await _financialRepo.getExpensesByFamily(osraId);
-    _isLoading = false;
-    notifyListeners();
+    try {
+      final results = await Future.wait([
+        _financialRepo.getFixedAidByFamily(osraId),
+        _financialRepo.getVariableAidByFamily(osraId),
+        _financialRepo.getExpensesByFamily(osraId),
+      ]);
+      if (generation != _generation) return;
+      if (generation != _generation) return;
+      _fixedAids = results[0] as List<FixedAid>;
+      _variableAids = results[1] as List<VariableAid>;
+      _expenses = results[2] as List<Expense>;
+    } catch (e) {
+      if (generation != _generation) return;
+      _error = 'تعذر تحميل البيانات. تحقق من الاتصال';
+      debugPrint('Financial load failed: $e');
+    } finally {
+      if (generation == _generation) {
+        _isLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> refreshSilently() async {
+    final generation = _generation;
+    final osraId = _lastFamilyId;
+    if (osraId == null) return;
+    try {
+      final results = await Future.wait([
+        _financialRepo.getFixedAidByFamily(osraId),
+        _financialRepo.getVariableAidByFamily(osraId),
+        _financialRepo.getExpensesByFamily(osraId),
+      ]);
+      if (generation != _generation) return;
+      _fixedAids = results[0] as List<FixedAid>;
+      _variableAids = results[1] as List<VariableAid>;
+      _expenses = results[2] as List<Expense>;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error in FinancialProvider.refreshSilently: $e');
+    }
   }
 
   Future<void> addFixedAid(FixedAid aid) async {

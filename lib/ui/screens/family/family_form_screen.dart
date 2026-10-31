@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/family_provider.dart';
@@ -5,6 +6,8 @@ import '../../../providers/lookup_provider.dart';
 import '../../../providers/financial_provider.dart';
 import '../../../data/models/family_models.dart';
 import '../../../data/services/pdf_service.dart';
+import '../../../sync/signalr_sync_service.dart';
+import '../../widgets/identity_fields.dart';
 
 class FamilyFormScreen extends StatefulWidget {
   const FamilyFormScreen({super.key});
@@ -39,6 +42,11 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
   int? _selectedMostwa;
 
   List<Person> _persons = [];
+  bool _loadingPersons = false;
+  String? _personsError;
+  int _personsGeneration = 0;
+  StreamSubscription<Set<String>>? _syncSubscription;
+  Timer? _membersRefreshTimer;
 
   // Extracted National ID data
   String? _extractedGov;
@@ -50,11 +58,9 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _rakmKomyController.addListener(_onNationalIdChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
       final lookup = Provider.of<LookupProvider>(context, listen: false);
-      await lookup.loadAllLookups();
-
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is Family) {
         setState(() {
@@ -67,6 +73,10 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
           _roController.text = args.rO ?? '';
           _phoneController.text = args.phone ?? '';
           _rakmKomyController.text = args.rakmKomy ?? '';
+          _extractedGov = args.governorate;
+          _extractedGender = args.gender;
+          _extractedAge = int.tryParse(args.age ?? '');
+          _extractedBirthDate = DateTime.tryParse(args.birthDate ?? '');
           _codeController.text = args.code?.toString() ?? '';
           _selectedArea = args.areaId;
           _selectedKaraba = args.karabaId;
@@ -76,125 +86,88 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
           _selectedMostwa = args.mostwaId;
         });
 
-        if (args.areaId != null) {
-          await lookup.loadStreets(args.areaId!);
-          setState(() => _selectedStreet = args.streetId);
+        _selectedStreet = args.streetId;
+        unawaited(_loadPersons());
+      }
+      // Members must not wait for nine unrelated lookup requests.
+      try {
+        await Future.wait([
+          lookup.loadAllLookups(),
+          if (args is Family && args.areaId != null)
+            lookup.loadStreets(args.areaId!),
+        ]);
+        if (mounted) setState(() {});
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('تعذر تحميل بعض القوائم. يمكنك إعادة المحاولة.'),
+            ),
+          );
         }
-
-        _loadPersons();
+      }
+    });
+    _syncSubscription = SignalRSyncService.instance.onTablesChanged.listen((
+      tables,
+    ) {
+      if (tables.contains('*') ||
+          tables.contains('person') ||
+          tables.contains('osra')) {
+        _membersRefreshTimer?.cancel();
+        _membersRefreshTimer = Timer(const Duration(milliseconds: 120), () {
+          if (mounted) unawaited(_loadPersons(silent: true));
+        });
       }
     });
   }
 
   @override
   void dispose() {
-    _rakmKomyController.removeListener(_onNationalIdChanged);
+    _membersRefreshTimer?.cancel();
+    _syncSubscription?.cancel();
+    _personsGeneration++;
+    _tabController.dispose();
+    for (final controller in [
+      _nameController,
+      _dalilController,
+      _emaraController,
+      _doorController,
+      _shakaController,
+      _roController,
+      _phoneController,
+      _codeController,
+    ]) {
+      controller.dispose();
+    }
     _rakmKomyController.dispose();
     super.dispose();
   }
 
-  void _onNationalIdChanged() {
-    final text = _rakmKomyController.text.trim();
-    if (text.length == 14) {
-      final parsed = _parseNationalId(text);
-      if (parsed != null) {
-        setState(() {
-          _extractedBirthDate = parsed['birthDate'] as DateTime;
-          _extractedGov = parsed['governorate'] as String;
-          _extractedGender = parsed['gender'] as String;
-          _extractedAge = parsed['age'] as int;
-        });
-      }
-    } else {
-      if (_extractedGov != null || _extractedGender != null || _extractedAge != null) {
-        setState(() {
-          _extractedGov = null;
-          _extractedGender = null;
-          _extractedAge = null;
-          _extractedBirthDate = null;
-        });
-      }
+  Future<void> _loadPersons({bool silent = false}) async {
+    final id = _existingFamily?.osraId;
+    if (id == null || !mounted) return;
+    final generation = ++_personsGeneration;
+    if (!silent) {
+      setState(() {
+        _loadingPersons = true;
+        _personsError = null;
+      });
     }
-  }
-
-  Map<String, dynamic>? _parseNationalId(String id) {
-    if (id.length != 14) return null;
-    final first = int.tryParse(id[0]);
-    if (first == null || (first != 2 && first != 3)) return null;
-
-    final yearStr = id.substring(1, 3);
-    final monthStr = id.substring(3, 5);
-    final dayStr = id.substring(5, 7);
-    final govStr = id.substring(7, 9);
-    final genderDigit = int.tryParse(id[12]);
-
-    final yearPrefix = (first == 2) ? "19" : "20";
-    final fullYear = int.tryParse("$yearPrefix$yearStr");
-    final month = int.tryParse(monthStr);
-    final day = int.tryParse(dayStr);
-
-    if (fullYear == null || month == null || day == null) return null;
-
-    DateTime birthDate;
     try {
-      birthDate = DateTime(fullYear, month, day);
-    } catch (_) {
-      return null;
-    }
-
-    final Map<String, String> governorates = {
-      "01": "القاهرة",
-      "02": "الإسكندرية",
-      "03": "بورسعيد",
-      "04": "السويس",
-      "11": "دمياط",
-      "12": "الدقهلية",
-      "13": "الشرقية",
-      "14": "القليوبية",
-      "15": "كفر الشيخ",
-      "16": "الغربية",
-      "17": "المنوفية",
-      "18": "البحيرة",
-      "19": "الإسماعيلية",
-      "21": "الجيزة",
-      "22": "بني سويف",
-      "23": "الفيوم",
-      "24": "المنيا",
-      "25": "أسيوط",
-      "26": "سوهاج",
-      "27": "قنا",
-      "28": "أسوان",
-      "29": "الأقصر",
-      "31": "البحر الأحمر",
-      "32": "الوادي الجديد",
-      "33": "مطروح",
-      "34": "شمال سيناء",
-      "35": "جنوب سيناء",
-      "88": "خارج الجمهورية",
-    };
-
-    final governorate = governorates[govStr] ?? "غير محدد";
-    final gender = (genderDigit != null && genderDigit % 2 == 1) ? "ذكر" : "أنثى";
-
-    final now = DateTime.now();
-    int age = now.year - birthDate.year;
-    if (now.month < birthDate.month || (now.month == birthDate.month && now.day < birthDate.day)) {
-      age--;
-    }
-
-    return {
-      "birthDate": birthDate,
-      "governorate": governorate,
-      "gender": gender,
-      "age": age,
-    };
-  }
-
-  Future<void> _loadPersons() async {
-    if (_existingFamily?.osraId != null) {
-      final persons = await Provider.of<FamilyProvider>(context, listen: false)
-          .getPersons(_existingFamily!.osraId!);
-      setState(() => _persons = persons);
+      final persons = await context.read<FamilyProvider>().getPersons(id);
+      if (!mounted || generation != _personsGeneration) return;
+      setState(() {
+        _persons = persons;
+        _personsError = null;
+        _loadingPersons = false;
+      });
+    } catch (error) {
+      if (!mounted || generation != _personsGeneration) return;
+      setState(() {
+        _loadingPersons = false;
+        _personsError =
+            'تعذر تحميل أفراد الأسرة. تحقق من الاتصال وحاول مرة أخرى.';
+      });
     }
   }
 
@@ -203,25 +176,34 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
 
     final family = Family(
       osraId: _existingFamily?.osraId,
-      osraName: _nameController.text,
+      osraName: _nameController.text.trim(),
       karabaId: _selectedKaraba,
       eSId: _selectedES,
       areaId: _selectedArea,
       streetId: _selectedStreet,
-      dalilName: _dalilController.text,
-      emara: _nameController.text, // Mapping C# logic where Emara sometimes used Osra Name
-      door: _doorController.text,
-      shaka: _shakaController.text,
-      rO: _roController.text,
-      phone: _phoneController.text,
+      dalilName: _dalilController.text.trim(),
+      emara: _emaraController.text.trim().isNotEmpty
+          ? _emaraController.text.trim()
+          : _nameController.text.trim(),
+      door: _doorController.text.trim(),
+      shaka: _shakaController.text.trim(),
+      rO: _roController.text.trim(),
+      phone: _phoneController.text.trim(),
       halaEgtimaiaId: _selectedHala,
       halaSehiaId: _selectedHalaSehia,
       mostwaId: _selectedMostwa,
-      rakmKomy: _rakmKomyController.text,
-      code: int.tryParse(_codeController.text),
+      rakmKomy: _rakmKomyController.text.trim(),
+      code: int.tryParse(_codeController.text.trim()),
+      birthDate: _extractedBirthDate?.toIso8601String(),
+      age: _extractedAge?.toString(),
+      gender: _extractedGender,
+      governorate: _extractedGov,
     );
 
-    await Provider.of<FamilyProvider>(context, listen: false).saveFamily(family);
+    await Provider.of<FamilyProvider>(
+      context,
+      listen: false,
+    ).saveFamily(family);
     if (!mounted) return;
     Navigator.of(context).pop();
   }
@@ -230,7 +212,7 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
     if (_existingFamily == null) return;
     final financial = Provider.of<FinancialProvider>(context, listen: false);
     await financial.loadFinancials(_existingFamily!.osraId!);
-    
+
     final pdfService = PdfService();
     await pdfService.generateFamilyReport(
       _existingFamily!,
@@ -246,36 +228,66 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_existingFamily == null ? 'إضافة أسرة جديدة' : 'تعديل أسرة'),
+        title: Text(
+          _existingFamily == null ? 'إضافة أسرة جديدة' : 'تعديل أسرة',
+        ),
         actions: [
-            IconButton(
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('حذف الأسرة'),
-                    content: Text('هل أنت متأكد من حذف أسرة ${_existingFamily!.osraName} وكل البيانات المتعلقة بها؟'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('إلغاء'),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          await Provider.of<FamilyProvider>(context, listen: false).deleteFamily(_existingFamily!.osraId!);
-                          if (!mounted) return;
-                          Navigator.pop(ctx); // Close dialog
-                          Navigator.pop(context); // Go back to list
-                        },
-                        child: const Text('حذف', style: TextStyle(color: Colors.red)),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              icon: const Icon(Icons.delete, color: Colors.red),
-              tooltip: 'حذف الأسرة',
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.teal.shade700,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: _save,
+              icon: const Icon(Icons.save_rounded, size: 18),
+              label: const Text(
+                'حفظ',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
             ),
+          ),
+          IconButton(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('حذف الأسرة'),
+                  content: Text(
+                    'هل أنت متأكد من حذف أسرة ${_existingFamily!.osraName} وكل البيانات المتعلقة بها؟',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('إلغاء'),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        final nav = Navigator.of(context);
+                        final dialogNav = Navigator.of(ctx);
+                        await Provider.of<FamilyProvider>(
+                          context,
+                          listen: false,
+                        ).deleteFamily(_existingFamily!.osraId!);
+                        dialogNav.pop(); // Close dialog
+                        nav.pop(); // Go back to list
+                      },
+                      child: const Text(
+                        'حذف',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+            icon: const Icon(Icons.delete, color: Colors.red),
+            tooltip: 'حذف الأسرة',
+          ),
           if (_existingFamily != null)
             IconButton(
               onPressed: _printReport,
@@ -295,16 +307,64 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
         key: _formKey,
         child: TabBarView(
           controller: _tabController,
-          children: [
-            _buildFamilyDetails(lookup),
-            _buildPersonsList(),
-          ],
+          children: [_buildFamilyDetails(lookup), _buildPersonsList()],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _save,
-        label: const Text('حفظ'),
-        icon: const Icon(Icons.save),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final borderColor = isDark ? const Color(0xFF334155) : Colors.grey.shade200;
+    final primaryColor = Theme.of(context).primaryColor;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black26 : Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: primaryColor, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ...children,
+        ],
       ),
     );
   }
@@ -314,344 +374,780 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
     required String label,
     required IconData icon,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF0F172A).withValues(alpha: 0.5) : const Color(0xFFF8FAFC);
+    final cardBorder = isDark ? const Color(0xFF334155) : Colors.grey.shade300;
+    final labelColor = isDark ? const Color(0xFF94A3B8) : Colors.grey.shade700;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
-            spreadRadius: 1,
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: cardBorder),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 16, color: Colors.blue.shade700),
-                const SizedBox(width: 8),
-                Text(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 15, color: Theme.of(context).primaryColor),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
                   label,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade600,
+                    color: labelColor,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
-            ),
-            SizedBox(
-              height: 40,
-              child: child,
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          SizedBox(height: 38, child: child),
+        ],
       ),
     );
   }
 
   Widget _buildFamilyDetails(LookupProvider lookup) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          _buildPremiumField(
-            label: 'اسم الأسرة (رب الأسرة)',
-            icon: Icons.family_restroom,
-            child: TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.only(bottom: 8)),
-              validator: (v) => v == null || v.isEmpty ? 'مطلوب' : null,
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 760;
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: isDesktop ? 24 : 12,
+            vertical: 16,
           ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 16.0,
-            runSpacing: 16.0,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(
-                width: 300,
-                child: _buildPremiumField(
-                  label: 'المنطقة',
-                  icon: Icons.map,
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      isExpanded: true,
-                      value: _selectedArea,
-                      items: lookup.areas.map((a) => DropdownMenuItem(value: a.areaId, child: Text(a.areaName))).toList(),
-                      onChanged: (val) {
-                        setState(() {
-                          _selectedArea = val;
-                          _selectedStreet = null;
-                        });
-                        if (val != null) lookup.loadStreets(val);
-                      },
+              // 1. البيانات الأساسية لرب الأسرة
+              _buildSectionCard(
+                title: 'البيانات الأساسية لرب الأسرة',
+                icon: Icons.badge_outlined,
+                children: [
+                  if (isDesktop) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: _buildPremiumField(
+                            label: 'اسم الأسرة (رب الأسرة)',
+                            icon: Icons.family_restroom,
+                            child: TextFormField(
+                              controller: _nameController,
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.only(bottom: 8),
+                                hintText: 'أدخل اسم رب الأسرة كاملاً',
+                              ),
+                              validator: (v) =>
+                                  v == null || v.trim().isEmpty ? 'مطلوب' : null,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 1,
+                          child: _buildPremiumField(
+                            label: 'الكود',
+                            icon: Icons.qr_code,
+                            child: TextFormField(
+                              controller: _codeController,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.only(bottom: 8),
+                                hintText: 'كود الأسرة',
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: _buildPremiumField(
+                            label: 'القرابة',
+                            icon: Icons.people_outline,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                value: _selectedKaraba,
+                                hint: const Text('صلة القرابة',
+                                    style: TextStyle(fontSize: 13)),
+                                items: lookup.karaba
+                                    .map<DropdownMenuItem<int>>(
+                                      (k) => DropdownMenuItem<int>(
+                                        value: k['karaba_id'] as int,
+                                        child: Text(k['karaba_name'] as String),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) =>
+                                    setState(() => _selectedKaraba = val),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    // Mobile
+                    _buildPremiumField(
+                      label: 'اسم الأسرة (رب الأسرة)',
+                      icon: Icons.family_restroom,
+                      child: TextFormField(
+                        controller: _nameController,
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.only(bottom: 8),
+                          hintText: 'أدخل اسم رب الأسرة كاملاً',
+                        ),
+                        validator: (v) =>
+                            v == null || v.trim().isEmpty ? 'مطلوب' : null,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildPremiumField(
+                            label: 'الكود',
+                            icon: Icons.qr_code,
+                            child: TextFormField(
+                              controller: _codeController,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.only(bottom: 8),
+                                hintText: 'الكود',
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: _buildPremiumField(
+                            label: 'القرابة',
+                            icon: Icons.people_outline,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                value: _selectedKaraba,
+                                hint: const Text('صلة القرابة',
+                                    style: TextStyle(fontSize: 13)),
+                                items: lookup.karaba
+                                    .map<DropdownMenuItem<int>>(
+                                      (k) => DropdownMenuItem<int>(
+                                        value: k['karaba_id'] as int,
+                                        child: Text(k['karaba_name'] as String),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) =>
+                                    setState(() => _selectedKaraba = val),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+
+              // 2. بطاقة الرقم القومي والبيانات المستخرجة
+              _buildSectionCard(
+                title: 'بطاقة الرقم القومي والبيانات الشخصية',
+                icon: Icons.credit_card_rounded,
+                children: [
+                  _buildPremiumField(
+                    label: 'الرقم القومي (14 رقم)',
+                    icon: Icons.badge_outlined,
+                    child: TextFormField(
+                      controller: _rakmKomyController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.only(bottom: 8),
+                        hintText: 'أدخل 14 رقماً لاستخراج البيانات تلقائياً',
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  IdentityFields(
+                    nationalId: _rakmKomyController,
+                    governorate: _extractedGov,
+                    gender: _extractedGender,
+                    age: _extractedAge?.toString(),
+                    birthDate: _extractedBirthDate,
+                    onChanged: (gov, gender, age, date) {
+                      _extractedGov = gov;
+                      _extractedGender = gender;
+                      _extractedAge = age;
+                      _extractedBirthDate = date;
+                    },
+                  ),
+                ],
               ),
-              SizedBox(
-                width: 300,
-                child: _buildPremiumField(
-                  label: 'الشارع',
-                  icon: Icons.add_road,
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      isExpanded: true,
-                      value: _selectedStreet,
-                      items: lookup.streets.map((s) => DropdownMenuItem(value: s.streetId, child: Text(s.streetName))).toList(),
-                      onChanged: (val) => setState(() => _selectedStreet = val),
+
+              // 3. العنوان وبيانات السكن
+              _buildSectionCard(
+                title: 'العنوان وبيانات السكن',
+                icon: Icons.location_on_outlined,
+                children: [
+                  if (isDesktop) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildPremiumField(
+                            label: 'المنطقة',
+                            icon: Icons.map,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                value: _selectedArea,
+                                hint: const Text('اختر المنطقة',
+                                    style: TextStyle(fontSize: 13)),
+                                items: lookup.areas
+                                    .map(
+                                      (a) => DropdownMenuItem(
+                                        value: a.areaId,
+                                        child: Text(a.areaName),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _selectedArea = val;
+                                    _selectedStreet = null;
+                                  });
+                                  if (val != null) lookup.loadStreets(val);
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildPremiumField(
+                            label: 'الشارع',
+                            icon: Icons.add_road,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                value: _selectedStreet,
+                                hint: const Text('اختر الشارع',
+                                    style: TextStyle(fontSize: 13)),
+                                items: lookup.streets
+                                    .map(
+                                      (s) => DropdownMenuItem(
+                                        value: s.streetId,
+                                        child: Text(s.streetName),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) =>
+                                    setState(() => _selectedStreet = val),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 16.0,
-            runSpacing: 16.0,
-            children: [
-              SizedBox(
-                width: 250,
-                child: _buildPremiumField(
-                  label: 'القرابة',
-                  icon: Icons.people_outline,
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      isExpanded: true,
-                      value: _selectedKaraba,
-                      items: lookup.karaba.map<DropdownMenuItem<int>>((k) => DropdownMenuItem<int>(value: k['karaba_id'] as int, child: Text(k['karaba_name'] as String))).toList(),
-                      onChanged: (val) => setState(() => _selectedKaraba = val),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: _buildPremiumField(
+                            label: 'الدور',
+                            icon: Icons.apartment,
+                            child: TextFormField(
+                              controller: _doorController,
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.only(bottom: 8),
+                                hintText: 'رقم الدور',
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 1,
+                          child: _buildPremiumField(
+                            label: 'الشقة',
+                            icon: Icons.door_front_door_outlined,
+                            child: TextFormField(
+                              controller: _shakaController,
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.only(bottom: 8),
+                                hintText: 'رقم الشقة',
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: _buildPremiumField(
+                            label: 'دليل / علامة مميزة',
+                            icon: Icons.flag_outlined,
+                            child: TextFormField(
+                              controller: _dalilController,
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.only(bottom: 8),
+                                hintText: 'علامة مميزة أو تفاصيل العنوان',
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 250,
-                child: _buildPremiumField(
-                  label: 'الحالة الاقتصادية',
-                  icon: Icons.attach_money,
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      isExpanded: true,
-                      value: _selectedES,
-                      items: lookup.economicStatus.map<DropdownMenuItem<int>>((e) => DropdownMenuItem<int>(value: e['e_s_id'] as int, child: Text(e['e_s_name'] as String))).toList(),
-                      onChanged: (val) => setState(() => _selectedES = val),
+                  ] else ...[
+                    // Mobile
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildPremiumField(
+                            label: 'المنطقة',
+                            icon: Icons.map,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                value: _selectedArea,
+                                hint: const Text('المنطقة',
+                                    style: TextStyle(fontSize: 13)),
+                                items: lookup.areas
+                                    .map(
+                                      (a) => DropdownMenuItem(
+                                        value: a.areaId,
+                                        child: Text(a.areaName),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _selectedArea = val;
+                                    _selectedStreet = null;
+                                  });
+                                  if (val != null) lookup.loadStreets(val);
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildPremiumField(
+                            label: 'الشارع',
+                            icon: Icons.add_road,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                value: _selectedStreet,
+                                hint: const Text('الشارع',
+                                    style: TextStyle(fontSize: 13)),
+                                items: lookup.streets
+                                    .map(
+                                      (s) => DropdownMenuItem(
+                                        value: s.streetId,
+                                        child: Text(s.streetName),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) =>
+                                    setState(() => _selectedStreet = val),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 250,
-                child: _buildPremiumField(
-                  label: 'الحالة الاجتماعية',
-                  icon: Icons.favorite_border,
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      isExpanded: true,
-                      value: _selectedHala,
-                      items: lookup.socialStatus.map<DropdownMenuItem<int>>((s) => DropdownMenuItem<int>(value: s['hala_egtimaia_id'] as int, child: Text(s['hala_name'] as String))).toList(),
-                      onChanged: (val) => setState(() => _selectedHala = val),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildPremiumField(
+                            label: 'الدور',
+                            icon: Icons.apartment,
+                            child: TextFormField(
+                              controller: _doorController,
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.only(bottom: 8),
+                                hintText: 'الدور',
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildPremiumField(
+                            label: 'الشقة',
+                            icon: Icons.door_front_door_outlined,
+                            child: TextFormField(
+                              controller: _shakaController,
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.only(bottom: 8),
+                                hintText: 'الشقة',
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 250,
-                child: _buildPremiumField(
-                  label: 'الحالة الصحية',
-                  icon: Icons.medical_services_outlined,
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      isExpanded: true,
-                      value: _selectedHalaSehia,
-                      items: lookup.healthStatus.map<DropdownMenuItem<int>>((h) => DropdownMenuItem<int>(value: h['hala_sehia_id'] as int, child: Text(h['hala_name'] as String))).toList(),
-                      onChanged: (val) => setState(() => _selectedHalaSehia = val),
+                    const SizedBox(height: 10),
+                    _buildPremiumField(
+                      label: 'دليل / علامة مميزة',
+                      icon: Icons.flag_outlined,
+                      child: TextFormField(
+                        controller: _dalilController,
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.only(bottom: 8),
+                          hintText: 'علامة مميزة أو تفاصيل العنوان',
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  ],
+                ],
               ),
-              SizedBox(
-                width: 250,
-                child: _buildPremiumField(
-                  label: 'المستوى التعليمي',
-                  icon: Icons.school_outlined,
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      isExpanded: true,
-                      value: _selectedMostwa,
-                      items: lookup.educationLevels.map<DropdownMenuItem<int>>((m) => DropdownMenuItem<int>(value: m['mostwa_id'] as int, child: Text(m['mostwa_name'] as String))).toList(),
-                      onChanged: (val) => setState(() => _selectedMostwa = val),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 16.0,
-            runSpacing: 16.0,
-            children: [
-              SizedBox(
-                width: 250,
-                child: _buildPremiumField(
-                  label: 'رقم التليفون',
-                  icon: Icons.phone_android,
-                  child: TextFormField(
-                    controller: _phoneController,
-                    decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.only(bottom: 8)),
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 250,
-                child: _buildPremiumField(
-                  label: 'الرقم القومي',
-                  icon: Icons.badge_outlined,
-                  child: TextFormField(
-                    controller: _rakmKomyController,
-                    decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.only(bottom: 8)),
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 250,
-                child: _buildPremiumField(
-                  label: 'رقم التليفون (أرضي)',
-                  icon: Icons.call,
-                  child: TextFormField(
-                    controller: _phoneController,
-                    decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.only(bottom: 8)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (_extractedGov != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.teal.shade50, Colors.cyan.shade50],
-                  begin: Alignment.topRight,
-                  end: Alignment.bottomLeft,
-                ),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.teal.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+
+              // 4. بيانات الاتصال والتواصل
+              _buildSectionCard(
+                title: 'بيانات الاتصال والتواصل',
+                icon: Icons.phone_in_talk_rounded,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.badge, size: 16, color: Colors.teal.shade700),
-                      const SizedBox(width: 6),
-                      Text('الناتج من الرقم القومي', style: TextStyle(color: Colors.teal.shade800, fontSize: 12, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildNidChip(Icons.location_on, 'المحافظة: $_extractedGov'),
-                      _buildNidChip(Icons.person, 'النوع: $_extractedGender'),
-                      _buildNidChip(Icons.cake, 'تاريخ الميلاد: ${_extractedBirthDate!.toLocal().toString().split(' ')[0]}'),
-                      _buildNidChip(Icons.access_time, 'السن: $_extractedAge سنة'),
+                      Expanded(
+                        child: _buildPremiumField(
+                          label: 'رقم الموبايل',
+                          icon: Icons.phone_android,
+                          child: TextFormField(
+                            controller: _phoneController,
+                            keyboardType: TextInputType.phone,
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.only(bottom: 8),
+                              hintText: 'رقم المحمول',
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildPremiumField(
+                          label: isDesktop ? 'رقم التليفون (أرضي)' : 'الهاتف الأرضي',
+                          icon: Icons.call,
+                          child: TextFormField(
+                            controller: _roController,
+                            keyboardType: TextInputType.phone,
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(vertical: 8),
+                              hintText: 'الهاتف الأرضي',
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ],
               ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 16.0,
-            runSpacing: 16.0,
-            children: [
-              SizedBox(
-                width: 200, 
-                child: _buildPremiumField(
-                  label: 'الكود',
-                  icon: Icons.qr_code,
-                  child: TextFormField(
-                    controller: _codeController, 
-                    decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.only(bottom: 8))
-                  )
-                )
+
+              // 5. الحالة الاجتماعية والاقتصادية والصحية
+              _buildSectionCard(
+                title: 'الحالة الاجتماعية والاقتصادية والتعليمية',
+                icon: Icons.volunteer_activism_rounded,
+                children: [
+                  if (isDesktop) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildPremiumField(
+                            label: 'الحالة الاقتصادية',
+                            icon: Icons.attach_money,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                value: _selectedES,
+                                hint: const Text('الحالة الاقتصادية',
+                                    style: TextStyle(fontSize: 13)),
+                                items: lookup.economicStatus
+                                    .map<DropdownMenuItem<int>>(
+                                      (e) => DropdownMenuItem<int>(
+                                        value: e['e_s_id'] as int,
+                                        child: Text(e['e_s_name'] as String),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) =>
+                                    setState(() => _selectedES = val),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildPremiumField(
+                            label: 'الحالة الاجتماعية',
+                            icon: Icons.favorite_border,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                value: _selectedHala,
+                                hint: const Text('الحالة الاجتماعية',
+                                    style: TextStyle(fontSize: 13)),
+                                items: lookup.socialStatus
+                                    .map<DropdownMenuItem<int>>(
+                                      (s) => DropdownMenuItem<int>(
+                                        value: s['hala_egtimaia_id'] as int,
+                                        child: Text(s['hala_name'] as String),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) =>
+                                    setState(() => _selectedHala = val),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildPremiumField(
+                            label: 'الحالة الصحية',
+                            icon: Icons.medical_services_outlined,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                value: _selectedHalaSehia,
+                                hint: const Text('الحالة الصحية',
+                                    style: TextStyle(fontSize: 13)),
+                                items: lookup.healthStatus
+                                    .map<DropdownMenuItem<int>>(
+                                      (h) => DropdownMenuItem<int>(
+                                        value: h['hala_sehia_id'] as int,
+                                        child: Text(h['hala_name'] as String),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) =>
+                                    setState(() => _selectedHalaSehia = val),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildPremiumField(
+                            label: 'المستوى التعليمي',
+                            icon: Icons.school_outlined,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                value: _selectedMostwa,
+                                hint: const Text('المستوى التعليمي',
+                                    style: TextStyle(fontSize: 13)),
+                                items: lookup.educationLevels
+                                    .map<DropdownMenuItem<int>>(
+                                      (m) => DropdownMenuItem<int>(
+                                        value: m['mostwa_id'] as int,
+                                        child: Text(m['mostwa_name'] as String),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) =>
+                                    setState(() => _selectedMostwa = val),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    // Mobile: 2 rows of 2 columns
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildPremiumField(
+                            label: 'الحالة الاقتصادية',
+                            icon: Icons.attach_money,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                value: _selectedES,
+                                hint: const Text('الاقتصادية',
+                                    style: TextStyle(fontSize: 13)),
+                                items: lookup.economicStatus
+                                    .map<DropdownMenuItem<int>>(
+                                      (e) => DropdownMenuItem<int>(
+                                        value: e['e_s_id'] as int,
+                                        child: Text(e['e_s_name'] as String),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) =>
+                                    setState(() => _selectedES = val),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildPremiumField(
+                            label: 'الحالة الاجتماعية',
+                            icon: Icons.favorite_border,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                value: _selectedHala,
+                                hint: const Text('الاجتماعية',
+                                    style: TextStyle(fontSize: 13)),
+                                items: lookup.socialStatus
+                                    .map<DropdownMenuItem<int>>(
+                                      (s) => DropdownMenuItem<int>(
+                                        value: s['hala_egtimaia_id'] as int,
+                                        child: Text(s['hala_name'] as String),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) =>
+                                    setState(() => _selectedHala = val),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildPremiumField(
+                            label: 'الحالة الصحية',
+                            icon: Icons.medical_services_outlined,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                value: _selectedHalaSehia,
+                                hint: const Text('الصحية',
+                                    style: TextStyle(fontSize: 13)),
+                                items: lookup.healthStatus
+                                    .map<DropdownMenuItem<int>>(
+                                      (h) => DropdownMenuItem<int>(
+                                        value: h['hala_sehia_id'] as int,
+                                        child: Text(h['hala_name'] as String),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) =>
+                                    setState(() => _selectedHalaSehia = val),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildPremiumField(
+                            label: 'المستوى التعليمي',
+                            icon: Icons.school_outlined,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                value: _selectedMostwa,
+                                hint: const Text('التعليمي',
+                                    style: TextStyle(fontSize: 13)),
+                                items: lookup.educationLevels
+                                    .map<DropdownMenuItem<int>>(
+                                      (m) => DropdownMenuItem<int>(
+                                        value: m['mostwa_id'] as int,
+                                        child: Text(m['mostwa_name'] as String),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) =>
+                                    setState(() => _selectedMostwa = val),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
               ),
-              SizedBox(
-                width: 200, 
-                child: _buildPremiumField(
-                  label: 'الدور',
-                  icon: Icons.apartment,
-                  child: TextFormField(
-                    controller: _roController, 
-                    decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.only(bottom: 8))
-                  )
-                )
-              ),
-              SizedBox(
-                width: 400,
-                child: _buildPremiumField(
-                  label: 'دليل / علامة مميزة',
-                  icon: Icons.location_on_outlined,
-                  child: TextFormField(
-                    controller: _dalilController,
-                    decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.only(bottom: 8)),
+
+              const SizedBox(height: 12),
+              // Prominent Save button inside the scroll
+              ElevatedButton.icon(
+                onPressed: _save,
+                icon: const Icon(Icons.save_rounded, size: 22),
+                label: const Text(
+                  'حفظ بيانات الأسرة',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
             ],
           ),
-          const SizedBox(height: 80), // Space for FAB
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNidChip(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.teal.shade100.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.teal.shade300),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.teal.shade700),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: TextStyle(color: Colors.teal.shade900, fontSize: 12, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildPersonsList() {
     if (_existingFamily == null) {
-      return const Center(child: Text('من فضلك احفظ الأسرة أولاً لإضافة أفراد'));
+      return const Center(
+        child: Text('من فضلك احفظ الأسرة أولاً لإضافة أفراد'),
+      );
     }
 
     final lookup = Provider.of<LookupProvider>(context, listen: false);
 
+    if (_loadingPersons && _persons.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_personsError != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_personsError!),
+            TextButton(
+              onPressed: _loadPersons,
+              child: const Text('إعادة المحاولة'),
+            ),
+          ],
+        ),
+      );
+    }
     return Column(
       children: [
+        if (_persons.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: Text('لا يوجد أفراد مسجلون في هذه الأسرة'),
+          ),
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: SizedBox(
@@ -660,7 +1156,10 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
             child: ElevatedButton.icon(
               onPressed: () => _showPersonDialog(),
               icon: const Icon(Icons.person_add),
-              label: const Text('إضافة فرد جديد', style: TextStyle(fontSize: 16)),
+              label: const Text(
+                'إضافة فرد جديد',
+                style: TextStyle(fontSize: 16),
+              ),
             ),
           ),
         ),
@@ -672,13 +1171,23 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
               final karaba = lookup.getKarabaName(person.karabaId);
               final stage = lookup.getStageName(person.stageId);
               final healthName = lookup.getHalaSehiaName(person.halaSehiaId);
-              final socialName = lookup.getHalaEgtimaiaName(person.halaEgtimaiaId);
-              final educationName = lookup.getEducationLevelName(person.mostwaId);
+              final socialName = lookup.getHalaEgtimaiaName(
+                person.halaEgtimaiaId,
+              );
+              final educationName = lookup.getEducationLevelName(
+                person.mostwaId,
+              );
+
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              final textPrimary = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+              final textSecondary = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B);
 
               return Card(
                 elevation: 4,
                 shadowColor: Colors.black12,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -694,25 +1203,45 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
                               children: [
                                 CircleAvatar(
                                   radius: 28,
-                                  backgroundColor: Colors.blue.withOpacity(0.1),
-                                  child: const Icon(Icons.person, color: Colors.blue, size: 30),
+                                  backgroundColor: Colors.blue.withValues(alpha: 0.1),
+                                  child: const Icon(
+                                    Icons.person,
+                                    color: Colors.blue,
+                                    size: 30,
+                                  ),
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         person.personName,
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                          color: textPrimary,
+                                        ),
                                       ),
                                       const SizedBox(height: 4),
-                                      if (person.mobile != null && person.mobile!.isNotEmpty)
+                                      if (person.mobile != null &&
+                                          person.mobile!.isNotEmpty)
                                         Row(
                                           children: [
-                                            const Icon(Icons.phone, size: 14, color: Colors.grey),
+                                            Icon(
+                                              Icons.phone,
+                                              size: 14,
+                                              color: textSecondary,
+                                            ),
                                             const SizedBox(width: 4),
-                                            Text(person.mobile!, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                                            Text(
+                                              person.mobile!,
+                                              style: TextStyle(
+                                                color: textSecondary,
+                                                fontSize: 13,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                     ],
@@ -725,14 +1254,23 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.edit, color: Colors.blue),
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: Colors.blue,
+                                ),
                                 onPressed: () => _showPersonDialog(person),
                                 tooltip: 'تعديل الفرد',
                               ),
                               IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.redAccent),
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.redAccent,
+                                ),
                                 onPressed: () async {
-                                  await Provider.of<FamilyProvider>(context, listen: false).deletePerson(person.personId!);
+                                  await Provider.of<FamilyProvider>(
+                                    context,
+                                    listen: false,
+                                  ).deletePerson(person.personId!);
                                   _loadPersons();
                                 },
                                 tooltip: 'حذف الفرد',
@@ -749,58 +1287,109 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          if (karaba != '---') 
+                          if (karaba != '---')
                             Chip(
-                              avatar: const Icon(Icons.family_restroom, size: 16, color: Colors.teal),
-                              label: Text(karaba), 
-                              backgroundColor: Colors.teal.shade50, 
-                              labelStyle: TextStyle(color: Colors.teal.shade800, fontSize: 13)
+                              avatar: const Icon(
+                                Icons.family_restroom,
+                                size: 16,
+                                color: Colors.teal,
+                              ),
+                              label: Text(karaba),
+                              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.teal.shade50,
+                              labelStyle: TextStyle(
+                                color: isDark ? const Color(0xFF5EEAD4) : Colors.teal.shade800,
+                                fontSize: 13,
+                              ),
                             ),
-                          if (person.age != null) 
+                          if (person.age != null)
                             Chip(
-                              avatar: const Icon(Icons.cake, size: 16, color: Colors.orange),
-                              label: Text('${person.age} سنة'), 
-                              backgroundColor: Colors.orange.shade50, 
-                              labelStyle: TextStyle(color: Colors.orange.shade800, fontSize: 13)
+                              avatar: const Icon(
+                                Icons.cake,
+                                size: 16,
+                                color: Colors.orange,
+                              ),
+                              label: Text('${person.age} سنة'),
+                              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.orange.shade50,
+                              labelStyle: TextStyle(
+                                color: isDark ? const Color(0xFFFDBA74) : Colors.orange.shade800,
+                                fontSize: 13,
+                              ),
                             ),
                           if (socialName != '---')
                             Chip(
-                              avatar: const Icon(Icons.favorite, size: 16, color: Colors.pink),
-                              label: Text(socialName), 
-                              backgroundColor: Colors.pink.shade50, 
-                              labelStyle: TextStyle(color: Colors.pink.shade800, fontSize: 13)
+                              avatar: const Icon(
+                                Icons.favorite,
+                                size: 16,
+                                color: Colors.pink,
+                              ),
+                              label: Text(socialName),
+                              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.pink.shade50,
+                              labelStyle: TextStyle(
+                                color: isDark ? const Color(0xFFF472B6) : Colors.pink.shade800,
+                                fontSize: 13,
+                              ),
                             ),
                           if (healthName != '---')
                             Chip(
-                              avatar: const Icon(Icons.medical_services, size: 16, color: Colors.indigo),
-                              label: Text(healthName), 
-                              backgroundColor: Colors.indigo.shade50, 
-                              labelStyle: TextStyle(color: Colors.indigo.shade800, fontSize: 13)
+                              avatar: const Icon(
+                                Icons.medical_services,
+                                size: 16,
+                                color: Colors.indigo,
+                              ),
+                              label: Text(healthName),
+                              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.indigo.shade50,
+                              labelStyle: TextStyle(
+                                color: isDark ? const Color(0xFFA5B4FC) : Colors.indigo.shade800,
+                                fontSize: 13,
+                              ),
                             ),
                           if (educationName != '---')
                             Chip(
-                              avatar: const Icon(Icons.school, size: 16, color: Colors.purple),
-                              label: Text(educationName), 
-                              backgroundColor: Colors.purple.shade50, 
-                              labelStyle: TextStyle(color: Colors.purple.shade800, fontSize: 13)
+                              avatar: const Icon(
+                                Icons.school,
+                                size: 16,
+                                color: Colors.purple,
+                              ),
+                              label: Text(educationName),
+                              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.purple.shade50,
+                              labelStyle: TextStyle(
+                                color: isDark ? const Color(0xFFD8B4FE) : Colors.purple.shade800,
+                                fontSize: 13,
+                              ),
                             ),
-                          if (stage != '---') 
+                          if (stage != '---')
                             Chip(
-                              avatar: const Icon(Icons.class_, size: 16, color: Colors.blue),
-                              label: Text(stage), 
-                              backgroundColor: Colors.blue.shade50, 
-                              labelStyle: TextStyle(color: Colors.blue.shade800, fontSize: 13)
+                              avatar: const Icon(
+                                Icons.class_,
+                                size: 16,
+                                color: Colors.blue,
+                              ),
+                              label: Text(stage),
+                              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.blue.shade50,
+                              labelStyle: TextStyle(
+                                color: isDark ? const Color(0xFF93C5FD) : Colors.blue.shade800,
+                                fontSize: 13,
+                              ),
                             ),
-                          if (person.wazefa != null && person.wazefa!.isNotEmpty)
+                          if (person.wazefa != null &&
+                              person.wazefa!.isNotEmpty)
                             Chip(
-                              avatar: const Icon(Icons.work, size: 16, color: Colors.brown),
-                              label: Text(person.wazefa!), 
-                              backgroundColor: Colors.brown.shade50, 
-                              labelStyle: TextStyle(color: Colors.brown.shade800, fontSize: 13)
+                              avatar: const Icon(
+                                Icons.work,
+                                size: 16,
+                                color: Colors.brown,
+                              ),
+                              label: Text(person.wazefa!),
+                              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.brown.shade50,
+                              labelStyle: TextStyle(
+                                color: isDark ? const Color(0xFFD6D3D1) : Colors.brown.shade800,
+                                fontSize: 13,
+                              ),
                             ),
                         ],
                       ),
-                      if (person.rakmKomy != null && person.rakmKomy!.isNotEmpty) ...[
+                      if (person.rakmKomy != null &&
+                          person.rakmKomy!.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
@@ -815,7 +1404,11 @@ class _FamilyFormScreenState extends State<FamilyFormScreen>
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Icon(Icons.badge_outlined, size: 16, color: Colors.grey.shade400),
+                            Icon(
+                              Icons.badge_outlined,
+                              size: 16,
+                              color: Colors.grey.shade400,
+                            ),
                           ],
                         ),
                       ],
@@ -847,7 +1440,12 @@ class PersonFormDialog extends StatefulWidget {
   final Person? existingPerson;
   final Function onSave;
 
-  const PersonFormDialog({super.key, required this.osraId, this.existingPerson, required this.onSave});
+  const PersonFormDialog({
+    super.key,
+    required this.osraId,
+    this.existingPerson,
+    required this.onSave,
+  });
 
   @override
   State<PersonFormDialog> createState() => _PersonFormDialogState();
@@ -874,7 +1472,6 @@ class _PersonFormDialogState extends State<PersonFormDialog> {
   @override
   void initState() {
     super.initState();
-    _rakmKomyController.addListener(_onNationalIdChanged);
     if (widget.existingPerson != null) {
       final p = widget.existingPerson!;
       _nameController.text = p.personName;
@@ -882,6 +1479,9 @@ class _PersonFormDialogState extends State<PersonFormDialog> {
       _jobController.text = p.wazefa ?? '';
       _rakmKomyController.text = p.rakmKomy ?? '';
       _birthDate = p.birthDate != null ? DateTime.tryParse(p.birthDate!) : null;
+      _extractedGov = p.governorate;
+      _extractedGender = p.gender;
+      _extractedAge = int.tryParse(p.age?.split(' ').first ?? '');
       _selectedKaraba = p.karabaId;
       _selectedMostwa = p.mostwaId;
       _selectedHala = p.halaEgtimaiaId;
@@ -893,7 +1493,6 @@ class _PersonFormDialogState extends State<PersonFormDialog> {
 
   @override
   void dispose() {
-    _rakmKomyController.removeListener(_onNationalIdChanged);
     _rakmKomyController.dispose();
     _nameController.dispose();
     _mobileController.dispose();
@@ -901,168 +1500,46 @@ class _PersonFormDialogState extends State<PersonFormDialog> {
     super.dispose();
   }
 
-  void _onNationalIdChanged() {
-    final text = _rakmKomyController.text.trim();
-    if (text.length == 14) {
-      final parsed = _parseNationalId(text);
-      if (parsed != null) {
-        setState(() {
-          _birthDate = parsed['birthDate'] as DateTime;
-          _extractedGov = parsed['governorate'] as String;
-          _extractedGender = parsed['gender'] as String;
-          _extractedAge = parsed['age'] as int;
-        });
-      }
-    } else {
-      if (_extractedGov != null || _extractedGender != null || _extractedAge != null) {
-        setState(() {
-          _extractedGov = null;
-          _extractedGender = null;
-          _extractedAge = null;
-        });
-      }
-    }
-  }
-
-  Map<String, dynamic>? _parseNationalId(String id) {
-    if (id.length != 14) return null;
-    final first = int.tryParse(id[0]);
-    if (first == null || (first != 2 && first != 3)) return null;
-
-    final yearStr = id.substring(1, 3);
-    final monthStr = id.substring(3, 5);
-    final dayStr = id.substring(5, 7);
-    final govStr = id.substring(7, 9);
-    final genderDigit = int.tryParse(id[12]);
-
-    final yearPrefix = (first == 2) ? "19" : "20";
-    final fullYear = int.tryParse("$yearPrefix$yearStr");
-    final month = int.tryParse(monthStr);
-    final day = int.tryParse(dayStr);
-
-    if (fullYear == null || month == null || day == null) return null;
-
-    DateTime birthDate;
-    try {
-      birthDate = DateTime(fullYear, month, day);
-    } catch (_) {
-      return null;
-    }
-
-    final Map<String, String> governorates = {
-      "01": "القاهرة",
-      "02": "الإسكندرية",
-      "03": "بورسعيد",
-      "04": "السويس",
-      "11": "دمياط",
-      "12": "الدقهلية",
-      "13": "الشرقية",
-      "14": "القليوبية",
-      "15": "كفر الشيخ",
-      "16": "الغربية",
-      "17": "المنوفية",
-      "18": "البحيرة",
-      "19": "الإسماعيلية",
-      "21": "الجيزة",
-      "22": "بني سويف",
-      "23": "الفيوم",
-      "24": "المنيا",
-      "25": "أسيوط",
-      "26": "سوهاج",
-      "27": "قنا",
-      "28": "أسوان",
-      "29": "الأقصر",
-      "31": "البحر الأحمر",
-      "32": "الوادي الجديد",
-      "33": "مطروح",
-      "34": "شمال سيناء",
-      "35": "جنوب سيناء",
-      "88": "خارج الجمهورية",
-    };
-
-    final governorate = governorates[govStr] ?? "غير محدد";
-    final gender = (genderDigit != null && genderDigit % 2 == 1) ? "ذكر" : "أنثى";
-
-    final now = DateTime.now();
-    int age = now.year - birthDate.year;
-    if (now.month < birthDate.month || (now.month == birthDate.month && now.day < birthDate.day)) {
-      age--;
-    }
-
-    return {
-      "birthDate": birthDate,
-      "governorate": governorate,
-      "gender": gender,
-      "age": age,
-    };
-  }
-
   Widget _buildPremiumField({
     required Widget child,
     required String label,
     required IconData icon,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final cardBorder = isDark ? const Color(0xFF334155) : Colors.grey.shade300;
+    final labelColor = isDark ? const Color(0xFF94A3B8) : Colors.grey.shade700;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
-            spreadRadius: 1,
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: cardBorder),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 16, color: Colors.blue.shade700),
-                const SizedBox(width: 8),
-                Text(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 15, color: Theme.of(context).primaryColor),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
                   label,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade600,
+                    color: labelColor,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
-            ),
-            SizedBox(
-              height: 40,
-              child: child,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNidChip(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.teal.shade100.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.teal.shade300),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.teal.shade700),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: TextStyle(color: Colors.teal.shade900, fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ],
           ),
+          const SizedBox(height: 2),
+          SizedBox(height: 38, child: child),
         ],
       ),
     );
@@ -1072,291 +1549,374 @@ class _PersonFormDialogState extends State<PersonFormDialog> {
   Widget build(BuildContext context) {
     final lookup = Provider.of<LookupProvider>(context);
     final familyProvider = Provider.of<FamilyProvider>(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 620;
+    final dialogWidth = isMobile ? screenWidth * 0.94 : 640.0;
+
+    final nameField = _buildPremiumField(
+      label: 'الاسم',
+      icon: Icons.person_outline,
+      child: TextField(
+        controller: _nameController,
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(vertical: 8),
+          hintText: 'الاسم بالكامل',
+        ),
+      ),
+    );
+
+    final karabaField = _buildPremiumField(
+      label: 'القرابة',
+      icon: Icons.family_restroom_outlined,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          isExpanded: true,
+          value: _selectedKaraba,
+          hint: const Text('صلة القرابة', style: TextStyle(fontSize: 13)),
+          items: lookup.karaba
+              .map<DropdownMenuItem<int>>(
+                (k) => DropdownMenuItem<int>(
+                  value: k['karaba_id'] as int,
+                  child: Text(k['karaba_name'] as String, overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged: (val) => setState(() => _selectedKaraba = val),
+        ),
+      ),
+    );
+
+    final stageField = _buildPremiumField(
+      label: 'المرحلة المقيد بها',
+      icon: Icons.class_outlined,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          isExpanded: true,
+          value: _selectedStage,
+          hint: const Text('المرحلة', style: TextStyle(fontSize: 13)),
+          items: lookup.stages
+              .map<DropdownMenuItem<int>>(
+                (s) => DropdownMenuItem<int>(
+                  value: s['stage_id'] as int,
+                  child: Text(s['stage_name'] as String, overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged: (val) => setState(() => _selectedStage = val),
+        ),
+      ),
+    );
+
+    final fatherField = _buildPremiumField(
+      label: 'أب الاعتراف',
+      icon: Icons.person_pin,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          isExpanded: true,
+          value: _selectedFather,
+          hint: const Text('الكاهن', style: TextStyle(fontSize: 13)),
+          items: lookup.fathers
+              .map<DropdownMenuItem<int>>(
+                (f) => DropdownMenuItem<int>(
+                  value: f.fatherId,
+                  child: Text(f.fatherName, overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged: (val) => setState(() => _selectedFather = val),
+        ),
+      ),
+    );
+
+    final socialField = _buildPremiumField(
+      label: 'الحالة الاجتماعية',
+      icon: Icons.favorite_border,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          isExpanded: true,
+          value: _selectedHala,
+          hint: const Text('الاجتماعية', style: TextStyle(fontSize: 13)),
+          items: lookup.socialStatus
+              .map<DropdownMenuItem<int>>(
+                (s) => DropdownMenuItem<int>(
+                  value: s['hala_egtimaia_id'] as int,
+                  child: Text(s['hala_name'] as String, overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged: (val) => setState(() => _selectedHala = val),
+        ),
+      ),
+    );
+
+    final healthField = _buildPremiumField(
+      label: 'الحالة الصحية',
+      icon: Icons.medical_services_outlined,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          isExpanded: true,
+          value: _selectedHealth,
+          hint: const Text('الصحية', style: TextStyle(fontSize: 13)),
+          items: lookup.healthStatus
+              .map<DropdownMenuItem<int>>(
+                (s) => DropdownMenuItem<int>(
+                  value: s['hala_sehia_id'] as int,
+                  child: Text(s['hala_name'] as String, overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged: (val) => setState(() => _selectedHealth = val),
+        ),
+      ),
+    );
+
+    final educationField = _buildPremiumField(
+      label: 'المستوى التعليمي',
+      icon: Icons.school_outlined,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          isExpanded: true,
+          value: _selectedMostwa,
+          hint: const Text('التعليمي', style: TextStyle(fontSize: 13)),
+          items: lookup.educationLevels
+              .map<DropdownMenuItem<int>>(
+                (s) => DropdownMenuItem<int>(
+                  value: s['mostwa_id'] as int,
+                  child: Text(s['mostwa_name'] as String, overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged: (val) => setState(() => _selectedMostwa = val),
+        ),
+      ),
+    );
+
+    final jobField = _buildPremiumField(
+      label: 'الوظيفة',
+      icon: Icons.work_outline,
+      child: TextField(
+        controller: _jobController,
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(vertical: 8),
+          hintText: 'المهنة أو الوظيفة',
+        ),
+      ),
+    );
+
+    final mobileField = _buildPremiumField(
+      label: 'رقم الموبايل',
+      icon: Icons.phone_android,
+      child: TextField(
+        controller: _mobileController,
+        keyboardType: TextInputType.phone,
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(vertical: 8),
+          hintText: 'رقم الهاتف المحمول',
+        ),
+      ),
+    );
+
+    final nationalIdField = _buildPremiumField(
+      label: 'الرقم القومي',
+      icon: Icons.badge_outlined,
+      child: TextField(
+        controller: _rakmKomyController,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(vertical: 8),
+          hintText: '14 رقم',
+        ),
+      ),
+    );
+
+    final identityWidget = IdentityFields(
+      nationalId: _rakmKomyController,
+      governorate: _extractedGov,
+      gender: _extractedGender,
+      age: _extractedAge?.toString(),
+      birthDate: _birthDate,
+      onChanged: (gov, gender, age, date) {
+        _extractedGov = gov;
+        _extractedGender = gender;
+        _extractedAge = age;
+        _birthDate = date;
+      },
+    );
 
     return AlertDialog(
-      title: Text(widget.existingPerson == null ? 'إضافة فرد جديد' : 'تعديل بيانات الفرد'),
-      contentPadding: const EdgeInsets.only(top: 20, left: 24, right: 24, bottom: 0),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 10 : 24,
+        vertical: isMobile ? 12 : 24,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      titlePadding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              widget.existingPerson == null
+                  ? Icons.person_add_rounded
+                  : Icons.edit_note_rounded,
+              color: Theme.of(context).primaryColor,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              widget.existingPerson == null
+                  ? 'إضافة فرد جديد'
+                  : 'تعديل بيانات الفرد',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ),
+        ],
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       content: SizedBox(
-        width: 600,
+        width: dialogWidth,
         child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Personal Info - Using Row for Name/Relation to keep them side by side if possible
-              Row(
-                children: [
-                  Expanded(
-                    flex: 2, 
-                    child: _buildPremiumField(
-                      label: 'الاسم',
-                      icon: Icons.person_outline,
-                      child: TextField(
-                        controller: _nameController, 
-                        decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.only(bottom: 8))
-                      )
-                    )
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: 150,
-                    child: _buildPremiumField(
-                      label: 'القرابة',
-                      icon: Icons.family_restroom_outlined,
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
-                          isExpanded: true,
-                          value: _selectedKaraba,
-                          items: lookup.karaba.map<DropdownMenuItem<int>>((k) => DropdownMenuItem<int>(value: k['karaba_id'] as int, child: Text(k['karaba_name'] as String))).toList(),
-                          onChanged: (val) => setState(() => _selectedKaraba = val),
-                        ),
-                      ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 500;
+              if (isWide) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(flex: 3, child: nameField),
+                        const SizedBox(width: 10),
+                        Expanded(flex: 2, child: karabaField),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              
-              // Birth Date & Stage
-              Wrap(
-                spacing: 12,
-                runSpacing: 16,
-                children: [
-                  SizedBox(
-                    width: 250,
-                    child: InkWell(
-                      onTap: () async {
-                        final d = await showDatePicker(
-                          context: context,
-                          initialDate: _birthDate ?? DateTime.now(),
-                          firstDate: DateTime(1900),
-                          lastDate: DateTime.now(),
-                        );
-                        if (d != null) setState(() => _birthDate = d);
-                      },
-                      child: _buildPremiumField(
-                        label: 'تاريخ الميلاد',
-                        icon: Icons.calendar_today,
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(_birthDate == null ? 'اختر التاريخ' : _birthDate!.toLocal().toString().split(' ')[0], style: const TextStyle(fontSize: 16)),
-                        ),
-                      ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(child: stageField),
+                        const SizedBox(width: 10),
+                        Expanded(child: fatherField),
+                      ],
                     ),
-                  ),
-                  SizedBox(
-                    width: 250,
-                    child: _buildPremiumField(
-                      label: 'المرحلة المقيد بها',
-                      icon: Icons.class_outlined,
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
-                          isExpanded: true,
-                          value: _selectedStage,
-                          items: lookup.stages.map<DropdownMenuItem<int>>((s) => DropdownMenuItem<int>(value: s['stage_id'] as int, child: Text(s['stage_name'] as String))).toList(),
-                          onChanged: (val) => setState(() => _selectedStage = val),
-                        ),
-                      ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(child: socialField),
+                        const SizedBox(width: 10),
+                        Expanded(child: healthField),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Statuses
-              Wrap(
-                spacing: 12,
-                runSpacing: 16,
-                children: [
-                  SizedBox(
-                    width: 250,
-                    child: _buildPremiumField(
-                      label: 'الحالة الاجتماعية',
-                      icon: Icons.favorite_border,
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
-                          isExpanded: true,
-                          value: _selectedHala,
-                          items: lookup.socialStatus.map<DropdownMenuItem<int>>((s) => DropdownMenuItem<int>(value: s['hala_egtimaia_id'] as int, child: Text(s['hala_name'] as String))).toList(),
-                          onChanged: (val) => setState(() => _selectedHala = val),
-                        ),
-                      ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(child: educationField),
+                        const SizedBox(width: 10),
+                        Expanded(child: jobField),
+                      ],
                     ),
-                  ),
-                  SizedBox(
-                    width: 250,
-                    child: _buildPremiumField(
-                      label: 'الحالة الصحية',
-                      icon: Icons.medical_services_outlined,
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
-                          isExpanded: true,
-                          value: _selectedHealth,
-                          items: lookup.healthStatus.map<DropdownMenuItem<int>>((s) => DropdownMenuItem<int>(value: s['hala_sehia_id'] as int, child: Text(s['hala_name'] as String))).toList(),
-                          onChanged: (val) => setState(() => _selectedHealth = val),
-                        ),
-                      ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(child: mobileField),
+                        const SizedBox(width: 10),
+                        Expanded(child: nationalIdField),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Education & Work
-              Wrap(
-                spacing: 12,
-                runSpacing: 16,
-                children: [
-                  SizedBox(
-                    width: 250,
-                    child: _buildPremiumField(
-                      label: 'المستوى التعليمي',
-                      icon: Icons.school_outlined,
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
-                          isExpanded: true,
-                          value: _selectedMostwa,
-                          items: lookup.educationLevels.map<DropdownMenuItem<int>>((s) => DropdownMenuItem<int>(value: s['mostwa_id'] as int, child: Text(s['mostwa_name'] as String))).toList(),
-                          onChanged: (val) => setState(() => _selectedMostwa = val),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 250,
-                    child: _buildPremiumField(
-                      label: 'الوظيفة',
-                      icon: Icons.work_outline,
-                      child: TextField(
-                        controller: _jobController, 
-                        decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.only(bottom: 8))
-                      )
-                    )
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Contact & Nat ID
-              Wrap(
-                spacing: 12,
-                runSpacing: 16,
-                children: [
-                  SizedBox(
-                    width: 250,
-                    child: _buildPremiumField(
-                      label: 'الرقم القومي',
-                      icon: Icons.badge_outlined,
-                      child: TextField(
-                        controller: _rakmKomyController, 
-                        decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.only(bottom: 8))
-                      )
-                    )
-                  ),
-                  SizedBox(
-                    width: 250,
-                    child: _buildPremiumField(
-                      label: 'رقم الموبايل',
-                      icon: Icons.phone_android,
-                      child: TextField(
-                        controller: _mobileController, 
-                        decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.only(bottom: 8))
-                      )
-                    )
-                  ),
-                ],
-              ),
-              if (_extractedGov != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.teal.shade50, Colors.cyan.shade50],
-                      begin: Alignment.topRight,
-                      end: Alignment.bottomLeft,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.teal.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.badge, size: 16, color: Colors.teal.shade700),
-                          const SizedBox(width: 6),
-                          Text('الناتج من الرقم القومي', style: TextStyle(color: Colors.teal.shade800, fontSize: 12, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _buildNidChip(Icons.location_on, 'المحافظة: $_extractedGov'),
-                          _buildNidChip(Icons.person, 'النوع: $_extractedGender'),
-                          _buildNidChip(Icons.cake, 'السن: $_extractedAge سنة'),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 16),
-              
-              // Father
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildPremiumField(
-                      label: 'أب الاعتراف',
-                      icon: Icons.person_pin,
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
-                          isExpanded: true,
-                          value: _selectedFather,
-                          items: lookup.fathers.map<DropdownMenuItem<int>>((f) => DropdownMenuItem<int>(value: f.fatherId, child: Text(f.fatherName))).toList(),
-                          onChanged: (val) => setState(() => _selectedFather = val),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-            ],
+                    const SizedBox(height: 12),
+                    identityWidget,
+                    const SizedBox(height: 8),
+                  ],
+                );
+              } else {
+                // Mobile layout: generous single-column fields so no labels or hints are cut off
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    nameField,
+                    const SizedBox(height: 10),
+                    karabaField,
+                    const SizedBox(height: 10),
+                    stageField,
+                    const SizedBox(height: 10),
+                    fatherField,
+                    const SizedBox(height: 10),
+                    socialField,
+                    const SizedBox(height: 10),
+                    healthField,
+                    const SizedBox(height: 10),
+                    educationField,
+                    const SizedBox(height: 10),
+                    jobField,
+                    const SizedBox(height: 10),
+                    mobileField,
+                    const SizedBox(height: 10),
+                    nationalIdField,
+                    const SizedBox(height: 12),
+                    identityWidget,
+                    const SizedBox(height: 8),
+                  ],
+                );
+              }
+            },
           ),
         ),
       ),
-      actionsPadding: const EdgeInsets.all(16),
+      actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء', style: TextStyle(fontSize: 16))),
-        ElevatedButton(
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('إلغاء', style: TextStyle(fontSize: 15)),
+        ),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.check, size: 18),
           style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
           onPressed: () async {
             final p = Person(
               personId: widget.existingPerson?.personId,
-              personName: _nameController.text,
+              personName: _nameController.text.trim(),
               osraId: widget.osraId,
               karabaId: _selectedKaraba,
               birthDate: _birthDate?.toIso8601String(),
               mostwaId: _selectedMostwa,
               halaEgtimaiaId: _selectedHala,
               halaSehiaId: _selectedHealth,
-              wazefa: _jobController.text,
-              mobile: _mobileController.text,
+              wazefa: _jobController.text.trim(),
+              mobile: _mobileController.text.trim(),
               stageId: _selectedStage,
               fatherId: _selectedFather,
-              age: _birthDate != null ? familyProvider.calculateAge(_birthDate!) : null,
-              rakmKomy: _rakmKomyController.text,
+              age: _extractedAge?.toString(),
+              gender: _extractedGender,
+              governorate: _extractedGov,
+              rakmKomy: _rakmKomyController.text.trim(),
             );
+            final nav = Navigator.of(context);
             await familyProvider.savePerson(p);
             widget.onSave();
-            if (mounted) Navigator.pop(context);
+            if (mounted) nav.pop();
           },
-          child: const Text('حفظ الفرد', style: TextStyle(fontSize: 16)),
+          label: const Text('حفظ الفرد', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
         ),
       ],
     );

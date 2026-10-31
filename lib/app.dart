@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/lookup_provider.dart';
@@ -29,9 +28,15 @@ import 'ui/screens/financial/expense_screen.dart';
 import 'ui/screens/search/search_screen.dart';
 import 'ui/screens/users/users_screen.dart';
 import 'ui/screens/id_card/id_card_generator_screen.dart';
+import 'sync/server_connection_service.dart';
+import 'sync/signalr_sync_service.dart';
+import 'sync/data_sync_coordinator.dart';
 
-class AbonaFlemoonApp extends StatelessWidget {
-  const AbonaFlemoonApp({super.key});
+import 'package:liquidify/liquidify.dart';
+import 'ui/theme/app_theme.dart';
+
+class ChurchMembershipApp extends StatelessWidget {
+  const ChurchMembershipApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -44,48 +49,59 @@ class AbonaFlemoonApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => FinancialProvider()),
         ChangeNotifierProvider(create: (_) => SearchProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => ServerConfigProvider()),
+        ChangeNotifierProvider(create: (_) => SignalRSyncProvider()),
       ],
-      child: MaterialApp(
-        title: 'Church Membership',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF1A237E), // Deep Indigo for a premium look
-            primary: const Color(0xFF1A237E),
-            secondary: const Color(0xFFC2185B),
-          ),
-          textTheme: GoogleFonts.cairoTextTheme(Theme.of(context).textTheme),
-        ),
-        locale: const Locale('ar', 'EG'),
-        supportedLocales: const [Locale('ar', 'EG')],
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        home: const AuthWrapper(),
-        routes: {
-          '/login': (context) => const LoginScreen(),
-          '/home': (context) => const HomeScreen(),
-          '/family-list': (context) => const FamilyListScreen(),
-          '/family-form': (context) => const FamilyFormScreen(),
-          '/areas': (context) => const AreasScreen(),
-          '/fathers': (context) => const FathersScreen(),
-          '/stages': (context) => const StagesScreen(),
-          '/promote-stages': (context) => const StagesPromotionScreen(),
-          '/services': (context) => const ServicesScreen(),
-          '/occasions': (context) => const OccasionsScreen(),
-          '/birthdays': (context) => const BirthdaysScreen(),
-          '/report': (context) => const MainReportScreen(),
-          '/confession': (context) => const ConfessionScreen(),
-          '/visit': (context) => const VisitScreen(),
-          '/aid': (context) => const AidScreen(),
-          '/expense': (context) => const ExpenseScreen(),
-          '/search': (context) => const SearchScreen(),
-          '/users': (context) => const UsersScreen(),
-          '/lookups': (context) => const LookupManagementScreen(),
-          '/id-cards': (context) => const IdCardGeneratorScreen(),
+      child: Consumer<SettingsProvider>(
+        builder: (context, settings, _) {
+          final isDark = settings.isDarkMode;
+          final glassOptions = AppTheme.getLiquidGlassOptions(
+            isDark: isDark,
+            primaryColor: settings.primaryColor,
+          );
+
+          return LiquidGlassTheme(
+            options: glassOptions,
+            child: DataSyncCoordinator(
+              child: MaterialApp(
+                title: 'Church Membership - العضوية الكنسية',
+                debugShowCheckedModeBanner: false,
+                themeMode: settings.themeMode,
+                theme: AppTheme.buildLightTheme(settings.primaryColor),
+                darkTheme: AppTheme.buildDarkTheme(settings.primaryColor),
+          locale: const Locale('ar', 'EG'),
+          supportedLocales: const [Locale('ar', 'EG')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: const AuthWrapper(),
+          routes: {
+            '/login': (context) => const LoginScreen(),
+            '/home': (context) => const HomeScreen(),
+            '/family-list': (context) => const FamilyListScreen(),
+            '/family-form': (context) => const FamilyFormScreen(),
+            '/areas': (context) => const AreasScreen(),
+            '/fathers': (context) => const FathersScreen(),
+            '/stages': (context) => const StagesScreen(),
+            '/promote-stages': (context) => const StagesPromotionScreen(),
+            '/services': (context) => const ServicesScreen(),
+            '/occasions': (context) => const OccasionsScreen(),
+            '/birthdays': (context) => const BirthdaysScreen(),
+            '/report': (context) => const MainReportScreen(),
+            '/confession': (context) => const ConfessionScreen(),
+            '/visit': (context) => const VisitScreen(),
+            '/aid': (context) => const AidScreen(),
+            '/expense': (context) => const ExpenseScreen(),
+            '/search': (context) => const SearchScreen(),
+            '/users': (context) => const UsersScreen(),
+            '/lookups': (context) => const LookupManagementScreen(),
+            '/id-cards': (context) => const IdCardGeneratorScreen(),
+          },
+              ),
+            ),
+          );
         },
       ),
     );

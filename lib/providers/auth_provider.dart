@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/services/backup_service.dart';
 import '../data/models/lookup_models.dart';
 import '../data/repositories/auth_repository.dart';
 
@@ -20,6 +21,7 @@ class AuthProvider with ChangeNotifier {
       final user = await _authRepo.login(userName, passWord);
       if (user != null) {
         _currentUser = user;
+        BackupService.setServerCredentials(user.userName, user.passWord);
         _permissions = await _authRepo.getPermissions(user.passId!);
         _isLoading = false;
         notifyListeners();
@@ -36,8 +38,20 @@ class AuthProvider with ChangeNotifier {
 
   void logout() {
     _currentUser = null;
+    BackupService.serverHeaders = {};
     _permissions = [];
     notifyListeners();
+  }
+
+  Future<void> refreshSilently() async {
+    try {
+      if (_currentUser?.passId != null) {
+        _permissions = await _authRepo.getPermissions(_currentUser!.passId!);
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error in AuthProvider.refreshSilently: $e');
+    }
   }
 
   bool hasPermission(String iconName) {

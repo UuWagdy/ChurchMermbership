@@ -50,7 +50,7 @@ class _MainReportScreenState extends State<MainReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('تقرير اخوة الرب')),
+      appBar: AppBar(title: const Text('تقرير العضوية الكنسية')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -58,7 +58,7 @@ class _MainReportScreenState extends State<MainReportScreen> {
             const Icon(Icons.picture_as_pdf, size: 80, color: Colors.redAccent),
             const SizedBox(height: 16),
             const Text(
-              'التقرير الإحصائي الشامل لاخوة الرب',
+              'التقرير الإحصائي الشامل للعضوية الكنسية',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),

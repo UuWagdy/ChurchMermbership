@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/lookup_provider.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 /// A unified screen for managing all lookup tables (القرابة، الحالة الاجتماعية، إلخ).
 class LookupManagementScreen extends StatefulWidget {
@@ -34,6 +35,10 @@ class _LookupManagementScreenState extends State<LookupManagementScreen> with Ti
       appBar: AppBar(
         title: const Text('إدارة القوائم'),
         centerTitle: true,
+        actions: const [
+          ThemeToggleButton(),
+          SizedBox(width: 8),
+        ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -192,7 +197,9 @@ class _LookupTabState extends State<_LookupTab> with AutomaticKeepAliveClientMix
             labelText: 'الاسم الجديد',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
-            fillColor: Colors.grey.shade50,
+            fillColor: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF1E293B)
+                : Colors.grey.shade50,
           ),
           autofocus: true,
           onSubmitted: (_) async {
@@ -270,6 +277,8 @@ class _LookupTabState extends State<_LookupTab> with AutomaticKeepAliveClientMix
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 600;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final textPrimary = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
 
         final addCard = Card(
           margin: const EdgeInsets.all(12),
@@ -310,7 +319,7 @@ class _LookupTabState extends State<_LookupTab> with AutomaticKeepAliveClientMix
                     hintText: 'أدخل الاسم هنا...',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     filled: true,
-                    fillColor: Colors.grey.shade50,
+                    fillColor: isDark ? const Color(0xFF1E293B) : Colors.grey.shade50,
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   ),
@@ -387,13 +396,26 @@ class _LookupTabState extends State<_LookupTab> with AutomaticKeepAliveClientMix
                             dense: true,
                             leading: CircleAvatar(
                               radius: 16,
-                              backgroundColor: widget.color.withOpacity(0.1),
+                              backgroundColor: isDark
+                                  ? widget.color.withValues(alpha: 0.35)
+                                  : widget.color.withOpacity(0.1),
                               child: Text(
                                 '${index + 1}',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: widget.color),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : widget.color,
+                                ),
                               ),
                             ),
-                            title: Text(name, style: const TextStyle(fontSize: 13)),
+                            title: Text(
+                              name,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [

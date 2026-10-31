@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.abonaflemoon" "\0"
-            VALUE "FileDescription", "abona_flemoon" "\0"
+            VALUE "CompanyName", "Church Membership" "\0"
+            VALUE "FileDescription", "Church Membership - العضوية الكنسية" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "abona_flemoon" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.abonaflemoon. All rights reserved." "\0"
-            VALUE "OriginalFilename", "abona_flemoon.exe" "\0"
-            VALUE "ProductName", "abona_flemoon" "\0"
+            VALUE "InternalName", "Church Membership - العضوية الكنسية" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Church Membership. All rights reserved." "\0"
+            VALUE "OriginalFilename", "church_membership.exe" "\0"
+            VALUE "ProductName", "Church Membership - العضوية الكنسية" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

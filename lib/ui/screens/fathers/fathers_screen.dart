@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/lookup_provider.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 class FathersScreen extends StatefulWidget {
   const FathersScreen({super.key});
@@ -61,7 +62,13 @@ class _FathersScreenState extends State<FathersScreen> {
     final lookup = Provider.of<LookupProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('إدارة الآباء الكهنة')),
+      appBar: AppBar(
+        title: const Text('إدارة الآباء الكهنة'),
+        actions: const [
+          ThemeToggleButton(),
+          SizedBox(width: 8),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

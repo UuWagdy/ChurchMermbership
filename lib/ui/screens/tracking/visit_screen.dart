@@ -1,3 +1,4 @@
+import '../../widgets/search_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +7,7 @@ import '../../../providers/family_provider.dart';
 import '../../../providers/lookup_provider.dart';
 import '../../../data/services/pdf_service.dart';
 import '../../../data/models/family_models.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 class VisitScreen extends StatefulWidget {
   const VisitScreen({super.key});
@@ -14,7 +16,8 @@ class VisitScreen extends StatefulWidget {
   State<VisitScreen> createState() => _VisitScreenState();
 }
 
-class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStateMixin {
+class _VisitScreenState extends State<VisitScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   // Scroll and Header States
@@ -41,6 +44,11 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.index == 0 && _selectedAreaIds.isNotEmpty) {
+        _loadGroupFamilies();
+      }
+    });
     _groupScrollController = ScrollController();
     _singleScrollController = ScrollController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -72,7 +80,9 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
 
     setState(() => _isGroupLoading = true);
     final familyProvider = Provider.of<FamilyProvider>(context, listen: false);
-    final data = await familyProvider.getFamiliesWithLastVisit(_selectedAreaIds);
+    final data = await familyProvider.getFamiliesWithLastVisit(
+      _selectedAreaIds,
+    );
     setState(() {
       _filteredFamilies = data;
       _checkedFamilyIds.clear();
@@ -83,12 +93,17 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
   void _saveGroupVisits() async {
     if (_checkedFamilyIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('من فضلك اختر أسرة واحدة على الأقل لتسجيل الافتقاد')),
+        const SnackBar(
+          content: Text('من فضلك اختر أسرة واحدة على الأقل لتسجيل الافتقاد'),
+        ),
       );
       return;
     }
 
-    final trackingProvider = Provider.of<TrackingProvider>(context, listen: false);
+    final trackingProvider = Provider.of<TrackingProvider>(
+      context,
+      listen: false,
+    );
     setState(() => _isGroupLoading = true);
 
     try {
@@ -98,39 +113,58 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
         date: _visitDate,
       );
       _groupNotesController.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم تسجيل الافتقاد للأسر المحددة بنجاح')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم تسجيل الافتقاد للأسر المحددة بنجاح')),
+        );
+      }
       await _loadGroupFamilies();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('حدث خطأ أثناء التسجيل: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء التسجيل: $e')));
+      }
     } finally {
-      setState(() => _isGroupLoading = false);
+      if (mounted) {
+        setState(() => _isGroupLoading = false);
+      }
     }
   }
 
   void _addSingleVisit() async {
     if (_selectedOsraId == null) return;
-    final trackingProvider = Provider.of<TrackingProvider>(context, listen: false);
+    final trackingProvider = Provider.of<TrackingProvider>(
+      context,
+      listen: false,
+    );
     await trackingProvider.addVisitWithDate(
       _selectedOsraId!,
       _singleNotesController.text,
       _singleVisitDate,
     );
     _singleNotesController.clear();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم تسجيل الزيارة بنجاح')),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم تسجيل الزيارة بنجاح')));
+    }
+    if (_selectedAreaIds.isNotEmpty) {
+      await _loadGroupFamilies();
+    }
   }
 
   void _printVisits() async {
-    final trackingProvider = Provider.of<TrackingProvider>(context, listen: false);
+    final trackingProvider = Provider.of<TrackingProvider>(
+      context,
+      listen: false,
+    );
     if (trackingProvider.visits.isEmpty) return;
 
     final familyProvider = Provider.of<FamilyProvider>(context, listen: false);
-    final familyName = familyProvider.families.firstWhere((f) => f.osraId == _selectedOsraId).osraName;
+    final familyName = familyProvider.families
+        .firstWhere((f) => f.osraId == _selectedOsraId)
+        .osraName;
 
     final headers = ['م', 'التاريخ', 'ملاحظات الزيارة'];
     final data = trackingProvider.visits.asMap().entries.map((e) {
@@ -159,6 +193,9 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
     return Scaffold(
       appBar: AppBar(
         title: const Text('سجل الافتقاد والزيارات'),
+        actions: const [
+          ThemeToggleButton(),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -181,6 +218,7 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
   // Tab 1: Group Visits Layout
   // ═══════════════════════════════════════════
   Widget _buildGroupVisitsTab(LookupProvider lookup) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final query = _searchQuery.trim().toLowerCase();
     final displayedFamilies = _filteredFamilies.where((f) {
       if (query.isEmpty) return true;
@@ -197,7 +235,14 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('المناطق المفتقدة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+              Text(
+                'المناطق المفتقدة',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: isDark ? const Color(0xFF94A3B8) : Colors.blueGrey,
+                ),
+              ),
               const SizedBox(height: 6),
               InkWell(
                 onTap: () async {
@@ -215,12 +260,16 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                               children: [
                                 CheckboxListTile(
                                   title: const Text('تحديد الكل'),
-                                  value: tempSelected.length == lookup.areas.length,
+                                  value:
+                                      tempSelected.length ==
+                                      lookup.areas.length,
                                   onChanged: (val) {
                                     setDialogState(() {
                                       if (val == true) {
                                         tempSelected.clear();
-                                        tempSelected.addAll(lookup.areas.map((a) => a.areaId!));
+                                        tempSelected.addAll(
+                                          lookup.areas.map((a) => a.areaId!),
+                                        );
                                       } else {
                                         tempSelected.clear();
                                       }
@@ -233,7 +282,9 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                                     itemCount: lookup.areas.length,
                                     itemBuilder: (c, idx) {
                                       final area = lookup.areas[idx];
-                                      final isChecked = tempSelected.contains(area.areaId);
+                                      final isChecked = tempSelected.contains(
+                                        area.areaId,
+                                      );
                                       return CheckboxListTile(
                                         title: Text(area.areaName),
                                         value: isChecked,
@@ -254,8 +305,14 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                             ),
                           ),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('إلغاء')),
-                            TextButton(onPressed: () => Navigator.pop(ctx, tempSelected), child: const Text('موافق')),
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, null),
+                              child: const Text('إلغاء'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, tempSelected),
+                              child: const Text('موافق'),
+                            ),
                           ],
                         );
                       },
@@ -269,9 +326,15 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade400),
+                    color: isDark ? const Color(0xFF1E293B) : null,
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF475569) : Colors.grey.shade400,
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -282,11 +345,17 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                           _selectedAreaIds.isEmpty
                               ? 'اختر المناطق لبدء الفلترة'
                               : _selectedAreaIds.length == lookup.areas.length
-                                  ? 'كل المناطق'
-                                  : lookup.areas
-                                      .where((a) => _selectedAreaIds.contains(a.areaId))
-                                      .map((a) => a.areaName)
-                                      .join('، '),
+                              ? 'كل المناطق'
+                              : lookup.areas
+                                    .where(
+                                      (a) =>
+                                          _selectedAreaIds.contains(a.areaId),
+                                    )
+                                    .map((a) => a.areaName)
+                                    .join('، '),
+                          style: TextStyle(
+                            color: isDark ? const Color(0xFFF8FAFC) : Colors.black87,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -303,7 +372,14 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('تاريخ الافتقاد', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+              Text(
+                'تاريخ الافتقاد',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: isDark ? const Color(0xFF94A3B8) : Colors.blueGrey,
+                ),
+              ),
               const SizedBox(height: 6),
               InkWell(
                 onTap: () async {
@@ -316,15 +392,26 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                   if (d != null) setState(() => _visitDate = d);
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade400),
+                    color: isDark ? const Color(0xFF1E293B) : null,
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF475569) : Colors.grey.shade400,
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(_visitDate.toLocal().toString().split(' ')[0]),
+                      Text(
+                        _visitDate.toLocal().toString().split(' ')[0],
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFFF8FAFC) : Colors.black87,
+                        ),
+                      ),
                       const Icon(Icons.calendar_today, size: 18),
                     ],
                   ),
@@ -382,7 +469,8 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                                 TextField(
                                   controller: _groupNotesController,
                                   decoration: const InputDecoration(
-                                    labelText: 'ملاحظات الافتقاد المشتركة للأسر المحددة (مثال: زيارة دورية / توزيع لحوم)',
+                                    labelText:
+                                        'ملاحظات الافتقاد المشتركة للأسر المحددة (مثال: زيارة دورية / توزيع لحوم)',
                                     border: OutlineInputBorder(),
                                     isDense: true,
                                   ),
@@ -420,7 +508,13 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                       Row(
                         children: [
                           Checkbox(
-                            value: displayedFamilies.isNotEmpty && displayedFamilies.every((f) => _checkedFamilyIds.contains(f['osra_id'] as int)),
+                            value:
+                                displayedFamilies.isNotEmpty &&
+                                displayedFamilies.every(
+                                  (f) => _checkedFamilyIds.contains(
+                                    f['osra_id'] as int,
+                                  ),
+                                ),
                             onChanged: (val) {
                               setState(() {
                                 if (val == true) {
@@ -429,16 +523,29 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                                   }
                                 } else {
                                   for (var f in displayedFamilies) {
-                                    _checkedFamilyIds.remove(f['osra_id'] as int);
+                                    _checkedFamilyIds.remove(
+                                      f['osra_id'] as int,
+                                    );
                                   }
                                 }
                               });
                             },
                           ),
-                          const Text('تحديد معروض الكل', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text(
+                            'تحديد معروض الكل',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? const Color(0xFFF8FAFC) : Colors.black87,
+                            ),
+                          ),
                         ],
                       ),
-                      Text('المعروض: ${displayedFamilies.length} (المحدد: ${_checkedFamilyIds.length} إجماليًا)'),
+                      Text(
+                        'المعروض: ${displayedFamilies.length} (المحدد: ${_checkedFamilyIds.length} إجماليًا)',
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade700,
+                        ),
+                      ),
                     ],
                   ),
                 // Families List Table
@@ -450,12 +557,18 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                 else if (_filteredFamilies.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 32.0),
-                    child: Center(child: Text('من فضلك اختر منطقة واحدة على الأقل لعرض الأسر')),
+                    child: Center(
+                      child: Text(
+                        'من فضلك اختر منطقة واحدة على الأقل لعرض الأسر',
+                      ),
+                    ),
                   )
                 else if (displayedFamilies.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 32.0),
-                    child: Center(child: Text('لا توجد نتائج بحث تطابق استعلامك')),
+                    child: Center(
+                      child: Text('لا توجد نتائج بحث تطابق استعلامك'),
+                    ),
                   )
                 else
                   ListView.builder(
@@ -470,20 +583,94 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                       final lastVisit = family['last_visit_date'] != null
                           ? (family['last_visit_date'] as String).split('T')[0]
                           : 'لم يفتقد من قبل';
-  
+                      final lastNotes = family['last_visit_notes']?.toString().trim();
+                      final hasNotes = lastNotes != null && lastNotes.isNotEmpty;
+
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         child: CheckboxListTile(
                           title: Row(
                             children: [
-                              Text(family['osra_name'] as String, style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Text(
+                                family['osra_name'] as String,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? const Color(0xFFF8FAFC) : Colors.black87,
+                                ),
+                              ),
                               const SizedBox(width: 8),
-                              Text('(# كود: $code)', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                              Text(
+                                '(# كود: $code)',
+                                style: TextStyle(
+                                  color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600,
+                                  fontSize: 13,
+                                ),
+                              ),
                             ],
                           ),
-                          subtitle: Text(
-                            'العنوان: ${family['area_name'] ?? ""} - ${family['street_name'] ?? ""} ${family['dalil_name'] != null ? "(${family['dalil_name']})" : ""}\nآخر افتقاد: $lastVisit',
-                            style: const TextStyle(fontSize: 13),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'العنوان: ${family['area_name'] ?? ""} - ${family['street_name'] ?? ""} ${family['dalil_name'] != null ? "(${family['dalil_name']})" : ""}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: isDark ? const Color(0xFFCBD5E1) : Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.history,
+                                      size: 15,
+                                      color: family['last_visit_date'] != null
+                                          ? (isDark ? const Color(0xFF38BDF8) : Colors.blue.shade700)
+                                          : (isDark ? const Color(0xFF94A3B8) : Colors.grey),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'آخر افتقاد: $lastVisit',
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: family['last_visit_date'] != null
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                        color: family['last_visit_date'] != null
+                                            ? (isDark ? const Color(0xFF38BDF8) : Colors.blue.shade800)
+                                            : (isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (hasNotes) ...[
+                                  const SizedBox(height: 3),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(
+                                        Icons.notes,
+                                        size: 15,
+                                        color: isDark ? const Color(0xFFFCD34D) : Colors.amber.shade800,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          'الملاحظات: $lastNotes',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDark ? const Color(0xFFE2E8F0) : Colors.grey.shade800,
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                           value: isChecked,
                           onChanged: (val) {
@@ -505,7 +692,10 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                   ElevatedButton.icon(
                     onPressed: _isGroupLoading ? null : _saveGroupVisits,
                     icon: const Icon(Icons.done_all),
-                    label: const Text('تسجيل الافتقاد للمحددين', style: TextStyle(fontSize: 16)),
+                    label: const Text(
+                      'تسجيل الافتقاد للمحددين',
+                      style: TextStyle(fontSize: 16),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue.shade700,
                       foregroundColor: Colors.white,
@@ -523,7 +713,11 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
   // ═══════════════════════════════════════════
   // Tab 2: Single Family Visits Layout
   // ═══════════════════════════════════════════
-  Widget _buildSingleFamilyTab(FamilyProvider familyProvider, TrackingProvider trackingProvider) {
+  Widget _buildSingleFamilyTab(
+    FamilyProvider familyProvider,
+    TrackingProvider trackingProvider,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 600;
@@ -542,13 +736,21 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade400),
+                color: isDark ? const Color(0xFF1E293B) : null,
+                border: Border.all(
+                  color: isDark ? const Color(0xFF475569) : Colors.grey.shade400,
+                ),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(_singleVisitDate.toLocal().toString().split(' ')[0]),
+                  Text(
+                    _singleVisitDate.toLocal().toString().split(' ')[0],
+                    style: TextStyle(
+                      color: isDark ? const Color(0xFFF8FAFC) : Colors.black87,
+                    ),
+                  ),
                   const Icon(Icons.calendar_today, size: 18),
                 ],
               ),
@@ -556,98 +758,16 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
           );
         }
 
-        Widget buildAutocomplete() {
-          return Autocomplete<Family>(
-            optionsBuilder: (TextEditingValue textEditingValue) {
-              if (textEditingValue.text.isEmpty) {
-                return familyProvider.families;
-              }
-              return familyProvider.families.where((Family option) {
-                final name = option.osraName.toLowerCase();
-                final code = (option.code?.toString() ?? '').toLowerCase();
-                final query = textEditingValue.text.toLowerCase();
-                return name.contains(query) || code.contains(query);
-              });
-            },
-            displayStringForOption: (Family option) => '${option.osraName} (كود: ${option.code ?? "---"})',
-            optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<Family> onSelected, Iterable<Family> options) {
-              return Align(
-                alignment: Alignment.topRight,
-                child: Material(
-                  elevation: 4.0,
-                  borderRadius: BorderRadius.circular(8),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: 300,
-                      maxWidth: isMobile ? constraints.maxWidth - 32 : constraints.maxWidth * 0.5,
-                    ),
-                    child: ListView.builder(
-                      padding: EdgeInsets.zero,
-                      shrinkWrap: true,
-                      itemCount: options.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        final Family option = options.elementAt(index);
-                        return ListTile(
-                          title: Text('${option.osraName} (كود: ${option.code ?? "---"})'),
-                          onTap: () {
-                            onSelected(option);
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              );
-            },
-            fieldViewBuilder: (BuildContext context, TextEditingController textEditingController, FocusNode focusNode, VoidCallback onFieldSubmitted) {
-              if (_selectedOsraId != null && textEditingController.text.isEmpty) {
-                final selectedFamily = familyProvider.families.firstWhere(
-                  (f) => f.osraId == _selectedOsraId,
-                  orElse: () => Family(osraName: ''),
-                );
-                if (selectedFamily.osraName.isNotEmpty) {
-                  textEditingController.text = '${selectedFamily.osraName} (كود: ${selectedFamily.code ?? "---"})';
-                }
-              }
-              return TextField(
-                controller: textEditingController,
-                focusNode: focusNode,
-                decoration: const InputDecoration(
-                  labelText: 'اختر الأسرة (بحث بالاسم أو الكود)',
-                  prefixIcon: Icon(Icons.people),
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
-                onChanged: (val) {
-                  if (val.isEmpty) {
-                    setState(() {
-                      _selectedOsraId = null;
-                    });
-                  } else {
-                    final currentFamily = familyProvider.families.firstWhere(
-                      (f) => f.osraId == _selectedOsraId,
-                      orElse: () => Family(osraName: ''),
-                    );
-                    final expectedText = '${currentFamily.osraName} (كود: ${currentFamily.code ?? "---"})';
-                    if (val != expectedText) {
-                      setState(() {
-                        _selectedOsraId = null;
-                      });
-                    }
-                  }
-                },
-              );
-            },
-            onSelected: (Family selection) {
-              setState(() {
-                _selectedOsraId = selection.osraId;
-              });
-              if (selection.osraId != null) {
-                trackingProvider.loadVisits(selection.osraId!);
-              }
-            },
-          );
-        }
+        Widget buildAutocomplete() => SearchPicker<Family>(
+          options: familyProvider.families,
+          label: (f) => '${f.osraName} (كود: ${f.code ?? "---"})',
+          hint: 'اختر الأسرة (بحث بالاسم أو الكود)',
+          onCleared: () => setState(() => _selectedOsraId = null),
+          onSelected: (f) {
+            setState(() => _selectedOsraId = f.osraId);
+            trackingProvider.loadVisits(f.osraId!);
+          },
+        );
 
         Widget buildNotesField() {
           return TextField(
@@ -734,9 +854,15 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                                 ] else ...[
                                   Row(
                                     children: [
-                                      Expanded(flex: 3, child: buildAutocomplete()),
+                                      Expanded(
+                                        flex: 3,
+                                        child: buildAutocomplete(),
+                                      ),
                                       const SizedBox(width: 16),
-                                      Expanded(flex: 2, child: buildDatePicker()),
+                                      Expanded(
+                                        flex: 2,
+                                        child: buildDatePicker(),
+                                      ),
                                     ],
                                   ),
                                   const SizedBox(height: 16),
@@ -766,12 +892,16 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                 else if (_selectedOsraId == null)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 32.0),
-                    child: Center(child: Text('اختر أسرة لعرض سجل زياراتها تفصيلياً')),
+                    child: Center(
+                      child: Text('اختر أسرة لعرض سجل زياراتها تفصيلياً'),
+                    ),
                   )
                 else if (trackingProvider.visits.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 32.0),
-                    child: Center(child: Text('لم يتم تسجيل زيارات لهذه الأسرة من قبل')),
+                    child: Center(
+                      child: Text('لم يتم تسجيل زيارات لهذه الأسرة من قبل'),
+                    ),
                   )
                 else
                   ListView.builder(
@@ -783,9 +913,20 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         child: ListTile(
-                          leading: const Icon(Icons.calendar_month, color: Colors.amber),
-                          title: Text(visit.date.split('T')[0], style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(visit.notes ?? 'بدون ملاحظات'),
+                          leading: const Icon(
+                            Icons.calendar_month,
+                            color: Colors.amber,
+                          ),
+                          title: Text(
+                            visit.date.split('T')[0],
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            visit.notes ?? 'بدون ملاحظات',
+                            style: TextStyle(
+                              color: isDark ? const Color(0xFFCBD5E1) : Colors.black87,
+                            ),
+                          ),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red),
                             onPressed: () {
@@ -793,15 +934,29 @@ class _VisitScreenState extends State<VisitScreen> with SingleTickerProviderStat
                                 context: context,
                                 builder: (ctx) => AlertDialog(
                                   title: const Text('حذف الزيارة'),
-                                  content: const Text('هل أنت متأكد من حذف هذا السجل بشكل نهائي؟'),
+                                  content: const Text(
+                                    'هل أنت متأكد من حذف هذا السجل بشكل نهائي؟',
+                                  ),
                                   actions: [
-                                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx),
+                                      child: const Text('إلغاء'),
+                                    ),
                                     TextButton(
                                       onPressed: () async {
-                                        await trackingProvider.deleteVisit(visit.visitId!, _selectedOsraId!);
-                                        if (mounted) Navigator.pop(ctx);
+                                        await trackingProvider.deleteVisit(
+                                          visit.visitId!,
+                                          _selectedOsraId!,
+                                        );
+                                        if (_selectedAreaIds.isNotEmpty) {
+                                          await _loadGroupFamilies();
+                                        }
+                                        if (ctx.mounted) Navigator.pop(ctx);
                                       },
-                                      child: const Text('حذف', style: TextStyle(color: Colors.red)),
+                                      child: const Text(
+                                        'حذف',
+                                        style: TextStyle(color: Colors.red),
+                                      ),
                                     ),
                                   ],
                                 ),

@@ -25,7 +25,7 @@ class PdfService {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Center(
-                  child: pw.Text('تقرير شامل للأسرة - اخوة الرب', style: pw.TextStyle(font: fontBold, fontSize: 24)),
+                  child: pw.Text('تقرير شامل للأسرة - العضوية الكنسية', style: pw.TextStyle(font: fontBold, fontSize: 24)),
                 ),
                 pw.SizedBox(height: 20),
                 pw.Divider(),
@@ -161,7 +161,7 @@ class PdfService {
                       spacing: 20,
                       runSpacing: 5,
                       children: [
-                        pw.Text('اسم الأسرة (الرب): ${family.osraName}', style: pw.TextStyle(font: fontBold)),
+                        pw.Text('اسم الأسرة: ${family.osraName}', style: pw.TextStyle(font: fontBold)),
                         pw.Text('الكود: ${family.code ?? '---'}', style: pw.TextStyle(font: font)),
                         pw.Text('التليفون: ${family.phone ?? '---'}', style: pw.TextStyle(font: font)),
                         pw.Text('المنطقة: $areaName', style: pw.TextStyle(font: font)),

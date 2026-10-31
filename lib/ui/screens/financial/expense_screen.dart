@@ -1,3 +1,4 @@
+import '../../widgets/search_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/financial_provider.dart';
@@ -5,7 +6,7 @@ import '../../../providers/family_provider.dart';
 import '../../../data/models/tracking_models.dart';
 import '../../../data/models/family_models.dart';
 import '../../../data/services/pdf_service.dart';
-
+import '../../widgets/theme_toggle_button.dart';
 
 class ExpenseScreen extends StatefulWidget {
   const ExpenseScreen({super.key});
@@ -20,9 +21,6 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   final _notesController = TextEditingController();
   final _masrofController = TextEditingController();
   final _ayneeController = TextEditingController();
-  final _familySearchController = TextEditingController();
-  final _familyFocusNode = FocusNode();
-  final _autocompleteKey = GlobalKey();
 
   @override
   void initState() {
@@ -38,8 +36,6 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     _notesController.dispose();
     _masrofController.dispose();
     _ayneeController.dispose();
-    _familySearchController.dispose();
-    _familyFocusNode.dispose();
     super.dispose();
   }
 
@@ -52,7 +48,10 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       aynee: _ayneeController.text,
       notes: _notesController.text,
     );
-    await Provider.of<FinancialProvider>(context, listen: false).addExpense(expense);
+    await Provider.of<FinancialProvider>(
+      context,
+      listen: false,
+    ).addExpense(expense);
     _clearInputs();
   }
 
@@ -64,11 +63,16 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   }
 
   void _printExpenses() async {
-    final financialProvider = Provider.of<FinancialProvider>(context, listen: false);
+    final financialProvider = Provider.of<FinancialProvider>(
+      context,
+      listen: false,
+    );
     if (financialProvider.expenses.isEmpty || _selectedOsraId == null) return;
-    
+
     final familyProvider = Provider.of<FamilyProvider>(context, listen: false);
-    final familyName = familyProvider.families.firstWhere((f) => f.osraId == _selectedOsraId).osraName;
+    final familyName = familyProvider.families
+        .firstWhere((f) => f.osraId == _selectedOsraId)
+        .osraName;
 
     final headers = ['م', 'البند', 'المبلغ', 'عيني', 'الملاحظات'];
     final data = financialProvider.expenses.asMap().entries.map((e) {
@@ -96,24 +100,42 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     final financialProvider = Provider.of<FinancialProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('إدارة المصروفات')),
+      appBar: AppBar(
+        title: const Text('إدارة المصروفات'),
+        actions: const [
+          ThemeToggleButton(),
+          SizedBox(width: 8),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
+        child: ListView(
           children: [
             Card(
               elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(12.0), // Reduced from 20
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Icon(Icons.add_circle_outline, color: Colors.blue.shade700),
+                        Icon(
+                          Icons.add_circle_outline,
+                          color: Colors.blue.shade700,
+                        ),
                         const SizedBox(width: 8),
-                        const Text('إضافة مصروف جديد', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const Text(
+                          'إضافة مصروف جديد',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                     const Divider(height: 24),
@@ -121,92 +143,16 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                       builder: (context, constraints) {
                         final isDesktop = constraints.maxWidth > 650;
 
-                        final familyAutocomplete = RawAutocomplete<Family>(
-                          key: _autocompleteKey,
-                          textEditingController: _familySearchController,
-                          focusNode: _familyFocusNode,
-                          optionsBuilder: (TextEditingValue textEditingValue) {
-                            final families = familyProvider.families;
-                            if (textEditingValue.text.isEmpty) {
-                              return families;
-                            }
-                            return families.where((Family option) {
-                              return option.osraName.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                            });
-                          },
-                          displayStringForOption: (Family option) => option.osraName,
-                          fieldViewBuilder: (BuildContext context, TextEditingController fieldController, FocusNode fieldFocusNode, VoidCallback onFieldSubmitted) {
-                            return TextFormField(
-                              controller: fieldController,
-                              focusNode: fieldFocusNode,
-                              style: const TextStyle(fontSize: 12, color: Colors.black),
-                              decoration: InputDecoration(
-                                labelText: 'اختر الأسرة',
-                                prefixIcon: const Icon(Icons.people, size: 18),
-                                suffixIcon: _selectedOsraId != null
-                                    ? IconButton(
-                                        icon: const Icon(Icons.clear, size: 18, color: Colors.grey),
-                                        onPressed: () {
-                                          setState(() {
-                                            _selectedOsraId = null;
-                                            _familySearchController.clear();
-                                          });
-                                        },
-                                      )
-                                    : const Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey),
-                                border: const OutlineInputBorder(),
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                              ),
-                            );
-                          },
-                          optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<Family> onSelected, Iterable<Family> options) {
-                            final screenWidth = MediaQuery.of(context).size.width;
-                            final optionsWidth = isDesktop ? 350.0 : screenWidth - 64.0;
-                            return Align(
-                              alignment: Alignment.topRight,
-                              child: Material(
-                                elevation: 4.0,
-                                borderRadius: BorderRadius.circular(8),
-                                clipBehavior: Clip.antiAlias,
-                                child: Container(
-                                  width: optionsWidth,
-                                  constraints: const BoxConstraints(maxHeight: 200),
-                                  color: Colors.white,
-                                  child: ListView.builder(
-                                    padding: EdgeInsets.zero,
-                                    shrinkWrap: true,
-                                    itemCount: options.length,
-                                    itemBuilder: (BuildContext context, int index) {
-                                      final Family option = options.elementAt(index);
-                                      return InkWell(
-                                        onTap: () => onSelected(option),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                                          decoration: BoxDecoration(
-                                            border: index < options.length - 1
-                                                ? Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5))
-                                                : null,
-                                          ),
-                                          child: Text(
-                                            option.osraName,
-                                            style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: Colors.black),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                          onSelected: (Family selection) {
-                            setState(() {
-                              _selectedOsraId = selection.osraId;
-                            });
-                            if (selection.osraId != null) {
-                              financialProvider.loadFinancials(selection.osraId!);
-                            }
+                        final familyAutocomplete = SearchPicker<Family>(
+                          options: familyProvider.families,
+                          label: (f) => f.osraName,
+                          searchText: (f) => '${f.osraName} ${f.code ?? ''}',
+                          hint: 'اختر الأسرة للمتابعة',
+                          onCleared: () =>
+                              setState(() => _selectedOsraId = null),
+                          onSelected: (family) {
+                            setState(() => _selectedOsraId = family.osraId);
+                            financialProvider.loadFinancials(family.osraId!);
                           },
                         );
 
@@ -218,7 +164,10 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             prefixIcon: Icon(Icons.category, size: 18),
                             border: OutlineInputBorder(),
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 10,
+                            ),
                           ),
                         );
 
@@ -230,7 +179,10 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             prefixIcon: Icon(Icons.attach_money, size: 16),
                             border: OutlineInputBorder(),
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 10,
+                            ),
                           ),
                           keyboardType: TextInputType.number,
                         );
@@ -243,7 +195,10 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             prefixIcon: Icon(Icons.inventory_2, size: 18),
                             border: OutlineInputBorder(),
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 10,
+                            ),
                           ),
                         );
 
@@ -255,7 +210,10 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             prefixIcon: Icon(Icons.note, size: 18),
                             border: OutlineInputBorder(),
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 10,
+                            ),
                           ),
                         );
 
@@ -315,25 +273,39 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                       alignment: WrapAlignment.end,
                       children: [
                         ElevatedButton.icon(
-                          onPressed: _selectedOsraId == null ? null : _addExpense,
+                          onPressed: _selectedOsraId == null
+                              ? null
+                              : _addExpense,
                           icon: const Icon(Icons.add_task),
                           label: const Text('تسجيل المصروف'),
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 16,
+                              horizontal: 20,
+                            ),
                             backgroundColor: Colors.blue.shade700,
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
                         ElevatedButton.icon(
-                          onPressed: financialProvider.expenses.isEmpty ? null : _printExpenses,
+                          onPressed: financialProvider.expenses.isEmpty
+                              ? null
+                              : _printExpenses,
                           icon: const Icon(Icons.picture_as_pdf),
                           label: const Text('استخراج تقرير PDF'),
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 16,
+                              horizontal: 20,
+                            ),
                             backgroundColor: Colors.red.shade600,
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
                       ],
@@ -344,28 +316,53 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
             ),
             const SizedBox(height: 16),
             if (_selectedOsraId != null)
-              Expanded(
+              SizedBox(
                 child: Column(
                   children: [
                     Text(
                       'إجمالي المصروفات: ${financialProvider.calculateTotalExpenses()} ج.م',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.deepOrange),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Colors.deepOrange,
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    Expanded(
+                    SizedBox(
                       child: ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
                         itemCount: financialProvider.expenses.length,
                         itemBuilder: (context, index) {
                           final exp = financialProvider.expenses[index];
                           return ListTile(
-                            leading: const Icon(Icons.money_off, color: Colors.red),
+                            leading: const Icon(
+                              Icons.money_off,
+                              color: Colors.red,
+                            ),
                             title: Text('${exp.masrof}: ${exp.countValue} ج.م'),
-                            subtitle: Text('عيني: ${exp.aynee ?? '---'} | ${exp.notes ?? ''}'),
+                            subtitle: Text(
+                              'عيني: ${exp.aynee ?? '---'} | ${exp.notes ?? ''}',
+                            ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                IconButton(icon: const Icon(Icons.edit, color: Colors.blue, size: 20), onPressed: () => _showEditExpenseDialog(exp)),
-                                IconButton(icon: const Icon(Icons.delete, color: Colors.red, size: 20), onPressed: () => _confirmDeleteExpense(exp)),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: Colors.blue,
+                                    size: 20,
+                                  ),
+                                  onPressed: () => _showEditExpenseDialog(exp),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
+                                  onPressed: () => _confirmDeleteExpense(exp),
+                                ),
                               ],
                             ),
                           );
@@ -382,7 +379,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   }
 
   void _showEditExpenseDialog(Expense exp) {
-    final amountController = TextEditingController(text: exp.countValue.toString());
+    final amountController = TextEditingController(
+      text: exp.countValue.toString(),
+    );
     final ayneeController = TextEditingController(text: exp.aynee);
     final notesController = TextEditingController(text: exp.notes);
     final masrofController = TextEditingController(text: exp.masrof);
@@ -395,15 +394,31 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: masrofController, decoration: const InputDecoration(labelText: 'بند المصروف')),
-              TextField(controller: amountController, decoration: const InputDecoration(labelText: 'المبلغ'), keyboardType: TextInputType.number),
-              TextField(controller: ayneeController, decoration: const InputDecoration(labelText: 'عيني')),
-              TextField(controller: notesController, decoration: const InputDecoration(labelText: 'ملاحظات')),
+              TextField(
+                controller: masrofController,
+                decoration: const InputDecoration(labelText: 'بند المصروف'),
+              ),
+              TextField(
+                controller: amountController,
+                decoration: const InputDecoration(labelText: 'المبلغ'),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: ayneeController,
+                decoration: const InputDecoration(labelText: 'عيني'),
+              ),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(labelText: 'ملاحظات'),
+              ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
           TextButton(
             onPressed: () async {
               final updatedExpense = Expense(
@@ -414,7 +429,10 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                 aynee: ayneeController.text,
                 notes: notesController.text,
               );
-              await Provider.of<FinancialProvider>(context, listen: false).updateExpense(updatedExpense);
+              await Provider.of<FinancialProvider>(
+                context,
+                listen: false,
+              ).updateExpense(updatedExpense);
               if (mounted) Navigator.pop(context);
             },
             child: const Text('حفظ'),
@@ -431,10 +449,16 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         title: const Text('حذف مصروف'),
         content: const Text('هل أنت متأكد من حذف هذا المصروف؟'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
           TextButton(
             onPressed: () async {
-              await Provider.of<FinancialProvider>(context, listen: false).deleteExpense(exp.masrofatId!, exp.osraId);
+              await Provider.of<FinancialProvider>(
+                context,
+                listen: false,
+              ).deleteExpense(exp.masrofatId!, exp.osraId);
               if (mounted) Navigator.pop(context);
             },
             child: const Text('حذف', style: TextStyle(color: Colors.red)),

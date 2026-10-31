@@ -4,43 +4,91 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:sqflite/sqflite.dart' as mobile_sqflite;
+
+import '../../sync/dotnet_postgres_database.dart';
+import '../../sync/server_config.dart';
+import 'identity_migration.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   factory DatabaseHelper() => _instance;
   DatabaseHelper._internal();
 
-  Database? _database;
+  Database? _localDatabase;
+  DotNetPostgresDatabase? _remoteDatabase;
 
-  Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDatabase();
-    return _database!;
+  static Future<String> getLocalDatabasePath() async {
+    final desktop = Platform.isWindows || Platform.isLinux;
+    final root = desktop
+        ? File(Platform.resolvedExecutable).parent.path
+        : (await getApplicationDocumentsDirectory()).path;
+    final target = desktop
+        ? join(root, 'church_membership.db')
+        : join(root, 'ChurchMembership', 'church_membership.db');
+    final legacy = desktop
+        ? join(root, 'eakhow_elrab.db')
+        : join(root, 'AbonaFlemoon', 'eakhow_elrab.db');
+    if (!await File(target).exists() && await File(legacy).exists()) {
+      await Directory(dirname(target)).create(recursive: true);
+      // SQLite backup includes committed WAL pages and keeps the old file intact.
+      if (desktop) {
+        sqfliteFfiInit();
+        databaseFactory = databaseFactoryFfi;
+      }
+      final oldDb = await openDatabase(legacy);
+      try {
+        await oldDb.execute('VACUUM INTO ?', [target]);
+      } finally {
+        await oldDb.close();
+      }
+    }
+    return target;
   }
 
-  /// Closes the database connection (used during restore).
+  Future<Database> get database async {
+    if (ServerConfig.isServerMode) {
+      return _remoteDatabase ??= DotNetPostgresDatabase();
+    }
+    if (_localDatabase != null) return _localDatabase!;
+    _localDatabase = await _initLocalDatabase();
+    return _localDatabase!;
+  }
+
+  /// Closes the database connections
   Future<void> closeDatabase() async {
-    if (_database != null) {
-      await _database!.close();
-      _database = null;
+    if (_localDatabase != null) {
+      await _localDatabase!.close();
+      _localDatabase = null;
+    }
+    if (_remoteDatabase != null) {
+      await _remoteDatabase!.close();
+      _remoteDatabase = null;
     }
   }
 
-  Future<Database> _initDatabase() async {
+  Future<void> reopenDatabase() async {
+    await closeDatabase();
+    await database;
+  }
+
+  Future<void> replaceDatabaseFile(String newFilePath) async {
+    await closeDatabase();
+    final targetPath = await getLocalDatabasePath();
+    final targetFile = File(targetPath);
+    if (await targetFile.exists()) {
+      await targetFile.delete();
+    }
+    await File(newFilePath).copy(targetPath);
+    await reopenDatabase();
+  }
+
+  Future<Database> _initLocalDatabase() async {
     if (Platform.isWindows || Platform.isLinux) {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
     }
 
-    String path;
-    if (Platform.isWindows) {
-      final exeDir = File(Platform.resolvedExecutable).parent.path;
-      path = join(exeDir, 'eakhow_elrab.db');
-    } else {
-      final dir = await getApplicationDocumentsDirectory();
-      path = join(dir.path, 'AbonaFlemoon', 'eakhow_elrab.db');
-    }
+    final path = await getLocalDatabasePath();
 
     // Ensure directory exists
     final dbDir = Directory(dirname(path));
@@ -51,8 +99,13 @@ class DatabaseHelper {
     // Copy from assets if not exists
     if (!await File(path).exists()) {
       try {
-        final byteData = await rootBundle.load('assets/database/eakhow_elrab.db');
-        final bytes = byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes);
+        final byteData = await rootBundle.load(
+          'assets/database/church_membership.db',
+        );
+        final bytes = byteData.buffer.asUint8List(
+          byteData.offsetInBytes,
+          byteData.lengthInBytes,
+        );
         await File(path).writeAsBytes(bytes);
         debugPrint('Copied database from assets to: $path');
       } catch (e) {
@@ -62,7 +115,27 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 10,
+      version: 11,
+      onOpen: (db) async {
+        await ensureIdentityColumns(db);
+        await db.rawUpdate(
+          "UPDATE icon SET icon_name = ? WHERE icon_name = ? AND NOT EXISTS (SELECT 1 FROM icon WHERE icon_name = 'تقرير العضوية الكنسية')",
+          ['تقرير العضوية الكنسية', 'تقرير اخوة الرب'],
+        );
+        await db.rawUpdate(
+          "UPDATE inter_icon SET icon_id = (SELECT icon_id FROM icon WHERE icon_name = 'تقرير العضوية الكنسية'), icon_name = ? WHERE icon_name = ?",
+          ['تقرير العضوية الكنسية', 'تقرير اخوة الرب'],
+        );
+        await db.delete(
+          'icon',
+          where: 'icon_name = ?',
+          whereArgs: ['تقرير اخوة الرب'],
+        );
+        await db.rawUpdate(
+          "UPDATE settings SET setting_value = ? WHERE setting_key IN ('service_name', 'serviceName')",
+          ['Church Membership - العضوية الكنسية'],
+        );
+      },
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
       onConfigure: (db) async {
@@ -70,10 +143,18 @@ class DatabaseHelper {
       },
     );
   }
+
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 11) {
+      await ensureIdentityColumns(db);
+    }
     if (oldVersion < 2) {
       // Add صيانة النظام permission if it doesn't exist
-      final existing = await db.query('icon', where: "icon_name = ?", whereArgs: ['صيانة النظام']);
+      final existing = await db.query(
+        'icon',
+        where: "icon_name = ?",
+        whereArgs: ['صيانة النظام'],
+      );
       if (existing.isEmpty) {
         final iconId = await db.insert('icon', {'icon_name': 'صيانة النظام'});
         // Add permission entry for all existing users
@@ -83,14 +164,20 @@ class DatabaseHelper {
             'pass_id': user['pass_id'],
             'icon_id': iconId,
             'icon_name': 'صيانة النظام',
-            'check_1': user['pass_id'] == 1 ? 1 : 0, // Admin gets it enabled by default
+            'check_1': user['pass_id'] == 1
+                ? 1
+                : 0, // Admin gets it enabled by default
           });
         }
       }
     }
     if (oldVersion < 3) {
       // Add إدارة القوائم permission if it doesn't exist
-      final existing = await db.query('icon', where: "icon_name = ?", whereArgs: ['إدارة القوائم']);
+      final existing = await db.query(
+        'icon',
+        where: "icon_name = ?",
+        whereArgs: ['إدارة القوائم'],
+      );
       if (existing.isEmpty) {
         final iconId = await db.insert('icon', {'icon_name': 'إدارة القوائم'});
         final users = await db.query('users');
@@ -124,7 +211,7 @@ class DatabaseHelper {
       } catch (e) {
         debugPrint('Column rakm_komy may already exist in person: $e');
       }
-      
+
       // Defensive check for osra rakm_komy if coming from very old conversion
       try {
         await db.execute('ALTER TABLE osra ADD COLUMN rakm_komy TEXT');
@@ -148,20 +235,26 @@ class DatabaseHelper {
     if (oldVersion < 7) {
       // Add print ID card permission
       try {
-        int iconId = await db.insert('icon', {'icon_name': 'طباعة كارنيه'}, conflictAlgorithm: ConflictAlgorithm.ignore);
+        int iconId = await db.insert('icon', {
+          'icon_name': 'طباعة كارنيه',
+        }, conflictAlgorithm: ConflictAlgorithm.ignore);
         if (iconId == 0) {
-          final res = await db.query('icon', where: 'icon_name = ?', whereArgs: ['طباعة كارنيه']);
+          final res = await db.query(
+            'icon',
+            where: 'icon_name = ?',
+            whereArgs: ['طباعة كارنيه'],
+          );
           if (res.isNotEmpty) iconId = res.first['icon_id'] as int;
         }
         if (iconId > 0) {
           final users = await db.query('users');
           for (var user in users) {
-             await db.insert('inter_icon', {
-               'pass_id': user['pass_id'],
-               'icon_id': iconId,
-               'icon_name': 'طباعة كارنيه',
-               'check_1': user['pass_id'] == 1 ? 1 : 0,
-             }, conflictAlgorithm: ConflictAlgorithm.ignore);
+            await db.insert('inter_icon', {
+              'pass_id': user['pass_id'],
+              'icon_id': iconId,
+              'icon_name': 'طباعة كارنيه',
+              'check_1': user['pass_id'] == 1 ? 1 : 0,
+            }, conflictAlgorithm: ConflictAlgorithm.ignore);
           }
         }
       } catch (e) {
@@ -175,23 +268,36 @@ class DatabaseHelper {
         await db.execute('DELETE FROM icon');
 
         final exactTabs = [
-          'إدراج أسر', 'مناطق وشوارع', 'آباء كهنة', 'مناسبات',
-          'بحث', 'أعياد ميلاد', 'صلاحيات', 'حساب مساعدات',
-          'تقرير اخوة الرب', 'خدمات', 'مصروفات', 'بحث مصروفات',
-          'إدارة القوائم', 'طباعة كارنيه', 'صيانة النظام'
+          'إدراج أسر',
+          'مناطق وشوارع',
+          'آباء كهنة',
+          'مناسبات',
+          'بحث',
+          'أعياد ميلاد',
+          'صلاحيات',
+          'حساب مساعدات',
+          'تقرير العضوية الكنسية',
+          'خدمات',
+          'مصروفات',
+          'بحث مصروفات',
+          'إدارة القوائم',
+          'طباعة كارنيه',
+          'صيانة النظام',
         ];
 
         for (var tab in exactTabs) {
           int iconId = await db.insert('icon', {'icon_name': tab});
-          
+
           final users = await db.query('users');
           for (var user in users) {
-             await db.insert('inter_icon', {
-               'pass_id': user['pass_id'],
-               'icon_id': iconId,
-               'icon_name': tab,
-               'check_1': user['pass_id'] == 1 ? 1 : 0, // only admin auto-enabled
-             });
+            await db.insert('inter_icon', {
+              'pass_id': user['pass_id'],
+              'icon_id': iconId,
+              'icon_name': tab,
+              'check_1': user['pass_id'] == 1
+                  ? 1
+                  : 0, // only admin auto-enabled
+            });
           }
         }
       } catch (e) {
@@ -202,20 +308,28 @@ class DatabaseHelper {
       try {
         final newTabs = ['الافتقاد', 'ترحيل المراحل'];
         for (var tab in newTabs) {
-          int iconId = await db.insert('icon', {'icon_name': tab}, conflictAlgorithm: ConflictAlgorithm.ignore);
+          int iconId = await db.insert('icon', {
+            'icon_name': tab,
+          }, conflictAlgorithm: ConflictAlgorithm.ignore);
           if (iconId == 0) {
-            final res = await db.query('icon', where: 'icon_name = ?', whereArgs: [tab]);
+            final res = await db.query(
+              'icon',
+              where: 'icon_name = ?',
+              whereArgs: [tab],
+            );
             if (res.isNotEmpty) iconId = res.first['icon_id'] as int;
           }
           if (iconId > 0) {
             final users = await db.query('users');
             for (var user in users) {
-               await db.insert('inter_icon', {
-                 'pass_id': user['pass_id'],
-                 'icon_id': iconId,
-                 'icon_name': tab,
-                 'check_1': user['pass_id'] == 1 ? 1 : 0, // only admin auto-enabled
-               }, conflictAlgorithm: ConflictAlgorithm.ignore);
+              await db.insert('inter_icon', {
+                'pass_id': user['pass_id'],
+                'icon_id': iconId,
+                'icon_name': tab,
+                'check_1': user['pass_id'] == 1
+                    ? 1
+                    : 0, // only admin auto-enabled
+              }, conflictAlgorithm: ConflictAlgorithm.ignore);
             }
           }
         }
@@ -226,20 +340,27 @@ class DatabaseHelper {
     if (oldVersion < 10) {
       try {
         final tab = 'الاعتراف';
-        int iconId = await db.insert('icon', {'icon_name': tab}, conflictAlgorithm: ConflictAlgorithm.ignore);
+        int iconId = await db.insert('icon', {
+          'icon_name': tab,
+        }, conflictAlgorithm: ConflictAlgorithm.ignore);
         if (iconId == 0) {
-          final res = await db.query('icon', where: 'icon_name = ?', whereArgs: [tab]);
+          final res = await db.query(
+            'icon',
+            where: 'icon_name = ?',
+            whereArgs: [tab],
+          );
           if (res.isNotEmpty) iconId = res.first['icon_id'] as int;
         }
         if (iconId > 0) {
           final users = await db.query('users');
           for (var user in users) {
-             await db.insert('inter_icon', {
-               'pass_id': user['pass_id'],
-               'icon_id': iconId,
-               'icon_name': tab,
-               'check_1': 1, // enabled for all accounts automatically as requested
-             }, conflictAlgorithm: ConflictAlgorithm.ignore);
+            await db.insert('inter_icon', {
+              'pass_id': user['pass_id'],
+              'icon_id': iconId,
+              'icon_name': tab,
+              'check_1':
+                  1, // enabled for all accounts automatically as requested
+            }, conflictAlgorithm: ConflictAlgorithm.ignore);
           }
         }
       } catch (e) {
@@ -331,6 +452,7 @@ class DatabaseHelper {
     // ═══════════════════════════════════════════
     await db.execute('''
       CREATE TABLE IF NOT EXISTS osra (
+        birth_date TEXT, age TEXT, gender TEXT, governorate TEXT,
         osra_id INTEGER PRIMARY KEY AUTOINCREMENT,
         osra_name TEXT NOT NULL,
         karaba_id INTEGER,
@@ -361,6 +483,7 @@ class DatabaseHelper {
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS person (
+        gender TEXT, governorate TEXT,
         person_id INTEGER PRIMARY KEY AUTOINCREMENT,
         person_name TEXT NOT NULL,
         osra_id INTEGER NOT NULL,
@@ -513,20 +636,36 @@ class DatabaseHelper {
   Future<void> _seedData(Database db) async {
     // 1. Default permissions (icons) EXACTLY matching Home Screen tabs
     final iconList = [
-      'إدراج أسر', 'مناطق وشوارع', 'آباء كهنة', 'مناسبات',
-      'بحث', 'أعياد ميلاد', 'صلاحيات', 'حساب مساعدات',
-      'تقرير اخوة الرب', 'خدمات', 'مصروفات', 'بحث مصروفات',
-      'إدارة القوائم', 'طباعة كارنيه', 'صيانة النظام', 'الافتقاد', 'ترحيل المراحل', 'الاعتراف'
+      'إدراج أسر',
+      'مناطق وشوارع',
+      'آباء كهنة',
+      'مناسبات',
+      'بحث',
+      'أعياد ميلاد',
+      'صلاحيات',
+      'حساب مساعدات',
+      'تقرير العضوية الكنسية',
+      'خدمات',
+      'مصروفات',
+      'بحث مصروفات',
+      'إدارة القوائم',
+      'طباعة كارنيه',
+      'صيانة النظام',
+      'الافتقاد',
+      'ترحيل المراحل',
+      'الاعتراف',
     ];
     for (var ic in iconList) {
-      await db.insert('icon', {'icon_name': ic}, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert('icon', {
+        'icon_name': ic,
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
 
     // 2. Default User (admin)
     // pass_id will be 1
     await db.insert('users', {
       'user_name': 'admin',
-      'pass_word': '1234'
+      'pass_word': '1234',
     }, conflictAlgorithm: ConflictAlgorithm.ignore);
 
     // 3. Admin permissions mapped to all icons
@@ -541,44 +680,123 @@ class DatabaseHelper {
     }
 
     // 4. Default Lookups
-    final karabaList = ['أب', 'أم', 'ابن', 'ابنة', 'زوج', 'زوجة', 'أخ', 'أخت', 'عم', 'عمة', 'خال', 'خالة', 'جد', 'جدة', 'حفيد', 'حفيدة', 'أخرى'];
+    final karabaList = [
+      'أب',
+      'أم',
+      'ابن',
+      'ابنة',
+      'زوج',
+      'زوجة',
+      'أخ',
+      'أخت',
+      'عم',
+      'عمة',
+      'خال',
+      'خالة',
+      'جد',
+      'جدة',
+      'حفيد',
+      'حفيدة',
+      'أخرى',
+    ];
     for (var k in karabaList) {
-      await db.insert('karaba', {'karaba_name': k}, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert('karaba', {
+        'karaba_name': k,
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
 
     final halaList = ['أعزب', 'متزوج', 'مطلق', 'أرمل'];
     for (var h in halaList) {
-      await db.insert('hala_egtimaia', {'hala_name': h}, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert('hala_egtimaia', {
+        'hala_name': h,
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
 
     final healthList = ['سليم', 'مريض', 'معاق', 'مزمن'];
     for (var h in healthList) {
-      await db.insert('hala_sehia', {'hala_name': h}, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert('hala_sehia', {
+        'hala_name': h,
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
 
     final esList = ['ممتاز', 'جيدة', 'متوسط', 'ضعيف', 'معدم'];
     for (var e in esList) {
-      await db.insert('e_s', {'e_s_name': e}, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert('e_s', {
+        'e_s_name': e,
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
 
-    final mostwaList = ['أمي', 'يقرأ ويكتب', 'ابتدائي', 'اعدادي', 'ثانوي', 'دبلوم', 'معهد', 'جامعي', 'ماجستير', 'دكتوراه', 'حضانة', 'أخرى'];
+    final mostwaList = [
+      'أمي',
+      'يقرأ ويكتب',
+      'ابتدائي',
+      'اعدادي',
+      'ثانوي',
+      'دبلوم',
+      'معهد',
+      'جامعي',
+      'ماجستير',
+      'دكتوراه',
+      'حضانة',
+      'أخرى',
+    ];
     for (var m in mostwaList) {
-      await db.insert('mostwa', {'mostwa_name': m}, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert('mostwa', {
+        'mostwa_name': m,
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
 
-    final khdmaList = ['مساعدات شهرية', 'علاج', 'أدوية', 'عمليات', 'لحوم', 'مدارس', 'جامعة', 'زواج', 'وفاة'];
+    final khdmaList = [
+      'مساعدات شهرية',
+      'علاج',
+      'أدوية',
+      'عمليات',
+      'لحوم',
+      'مدارس',
+      'جامعة',
+      'زواج',
+      'وفاة',
+    ];
     for (var k in khdmaList) {
-      await db.insert('khdma', {'khdma_name': k}, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert('khdma', {
+        'khdma_name': k,
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
 
     final stageList = [
-      'تمهيدى', 'KG1', 'KG2', 'أولى إبتدائى', 'ثانية ب', 'ثالثة ب', 'رابعة ب', 'خامسة ب', 'سادسة ب',
-      'اولى ع', 'ثانية ع', 'ثالثة ع', 'اولي ث', 'ثانية ث', 'ثالثة ث',
-      'اولي ج', 'ثانية ج', 'ثالثة ج', 'رابعة ج', 'خامسة ج', 'سادسة ج',
-      'خريج', 'موظف', 'أعمال حرة', 'معاش', 'متوفى', 'رب الأسرة', 'ربة منزل'
+      'تمهيدى',
+      'KG1',
+      'KG2',
+      'أولى إبتدائى',
+      'ثانية ب',
+      'ثالثة ب',
+      'رابعة ب',
+      'خامسة ب',
+      'سادسة ب',
+      'اولى ع',
+      'ثانية ع',
+      'ثالثة ع',
+      'اولي ث',
+      'ثانية ث',
+      'ثالثة ث',
+      'اولي ج',
+      'ثانية ج',
+      'ثالثة ج',
+      'رابعة ج',
+      'خامسة ج',
+      'سادسة ج',
+      'خريج',
+      'موظف',
+      'أعمال حرة',
+      'معاش',
+      'متوفى',
+      'رب الأسرة',
+      'ربة منزل',
     ];
     for (var s in stageList) {
-      await db.insert('stage', {'stage_name': s}, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert('stage', {
+        'stage_name': s,
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
   }
 }
