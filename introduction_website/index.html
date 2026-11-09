@@ -2459,5 +2459,31 @@
       pwaBanner.style.display = 'none';
     });
   </script>
+
+  <!-- Firebase App & Analytics SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB_L7qB168e7-0KmYt4dZMYBRsic-S2-KU",
+      authDomain: "church-membership-ch.firebaseapp.com",
+      projectId: "church-membership-ch",
+      storageBucket: "church-membership-ch.firebasestorage.app",
+      messagingSenderId: "317399069638",
+      appId: "1:317399069638:web:88733fc46fd89f96b4b8c7",
+      measurementId: "G-J6WLDQDG5M"
+    };
+
+    try {
+      const app = initializeApp(firebaseConfig);
+      const analytics = getAnalytics(app);
+      window.firebaseApp = app;
+      window.firebaseAnalytics = analytics;
+      console.log('Firebase initialized successfully for church-membership-ch');
+    } catch (error) {
+      console.warn('Firebase initialization notice:', error);
+    }
+  </script>
 </body>
 </html>

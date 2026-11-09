@@ -1,4 +1,4 @@
-const CACHE_NAME = 'church-membership-v2';
+const CACHE_NAME = 'church-membership-v3';
 const ASSETS = [
   './',
   './index.html',

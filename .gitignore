@@ -69,3 +69,7 @@ installer/output/
 installer/Output/
 installer/downloads/
 installer/payload/
+
+# Firebase
+.firebase/
+

@@ -19,7 +19,7 @@
 
 ## 🔗 روابط سريعة
 
-* **الموقع التعريفي الرسمي (PWA):** [اضغط هنا لتصفح الموقع](https://UuWagdy.github.io/ChurchMermbership/)
+* **الموقع التعريفي الرسمي (PWA على Firebase):** [اضغط هنا لتصفح الموقع](https://church-membership-ch.web.app/)
 * **تنزيل نسخة الكمبيوتر (Windows Setup):** [تحميل ChurchMembership_Setup.exe (عبر Mediafire)](https://www.mediafire.com/file/qwys3rooj7t2sio/ChurchMembership_Setup.exe/file)
 * **تنزيل نسخة الموبايل (Android APK):** [تحميل ChurchMembership_Android.apk (عبر Mediafire)](https://www.mediafire.com/file/plh51qybne20q0t/ChurchMembership_Android.apk/file)
 
